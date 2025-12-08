@@ -3,44 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Elo Brindes</title>
+    <title>Login | Elo Prova Digital</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#050505',
+                            card: '#121212',
+                            wine: '#E31937',
+                            hover: '#C2132F',
+                            surface: '#1E1E1E'
+                        }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #050505; color: #E5E7EB; }
+        .glass-panel { background: rgba(30, 30, 30, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); color: white; transition: all 0.2s; }
+        .glass-input:focus { border-color: #E31937; outline: none; background: rgba(0, 0, 0, 0.5); }
+    </style>
 </head>
-<body class="bg-indigo-900 min-h-screen flex items-center justify-center font-sans p-4">
-    <div class="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden p-8">
+<body class="h-screen flex items-center justify-center bg-brand-dark">
+
+    <div class="glass-panel p-10 rounded-2xl w-full max-w-sm mx-4 border-t-4 border-brand-wine shadow-2xl relative overflow-hidden">
+        
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-wine to-transparent opacity-50"></div>
+
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-indigo-900 mb-2">Elo Brindes</h1>
-            <p class="text-gray-500 text-sm">Acesso restrito ao time de Design</p>
+            <div class="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-lg">
+                <i class="fa-solid fa-print text-brand-wine text-3xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Prova Digital</h1>
+            <p class="text-gray-500 text-xs mt-1 uppercase tracking-widest">Acesso Restrito Design</p>
         </div>
 
         {% if erro %}
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm font-bold text-center">
-            {{ erro }}
+        <div class="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded mb-6 text-xs text-center font-bold">
+            <i class="fa-solid fa-circle-exclamation mr-1"></i> {{ erro }}
         </div>
         {% endif %}
 
-        <form action="/login" method="POST">
-            <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2">E-mail</label>
+        <form action="/login" method="POST" class="space-y-4">
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500 ml-1">E-mail</label>
                 <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-envelope"></i></span>
-                    <input type="email" name="email" required class="w-full pl-10 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="seu@email.com">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500"><i class="fa-solid fa-envelope"></i></span>
+                    <input type="email" name="email" required class="w-full glass-input rounded-lg pl-10 pr-4 py-3 mt-1 text-sm placeholder-gray-600" placeholder="seu@elobrindes.com.br">
                 </div>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Senha</label>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-500 ml-1">Senha</label>
                 <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-lock"></i></span>
-                    <input type="password" name="password" required class="w-full pl-10 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="********">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" name="password" required class="w-full glass-input rounded-lg pl-10 pr-4 py-3 mt-1 text-sm placeholder-gray-600" placeholder="••••••••">
                 </div>
             </div>
 
-            <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition shadow-lg">
-                Entrar no Sistema
+            <button type="submit" class="w-full bg-brand-wine hover:bg-brand-hover text-white font-bold py-3.5 rounded-lg transition-all shadow-lg hover:shadow-brand-wine/20 mt-4 text-sm uppercase tracking-wide">
+                Acessar Sistema
             </button>
         </form>
+        
+        <p class="text-center text-[10px] text-gray-600 mt-8">
+            &copy; Elo Brindes - Sistema Interno
+        </p>
     </div>
+
 </body>
 </html>
