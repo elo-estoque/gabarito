@@ -7,6 +7,8 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -18,7 +20,7 @@
                     colors: {
                         brand: {
                             dark: '#050505',
-                            card: '#121212', // Um pouco mais claro que o fundo
+                            card: '#121212',
                             wine: '#E31937',
                             hover: '#C2132F',
                             surface: '#1E1E1E'
@@ -28,31 +30,26 @@
                 }
             }
         }
+        
+        // Configuração do Worker do PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
     <style>
         body { background-color: #050505; color: #E5E7EB; }
-        
-        /* Estilos de Vidro e Inputs Dark */
         .glass-panel { background: #121212; border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); color: white; transition: all 0.2s; }
         .glass-input:focus { border-color: #E31937; outline: none; background: rgba(0, 0, 0, 0.5); }
-        .glass-input option { background-color: #121212; color: white; } /* Corrige cor do dropdown */
-
-        /* Canvas */
+        .glass-input option { background-color: #121212; color: white; }
         .canvas-wrapper {
             transform-origin: center center;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8); /* Sombra mais forte no modo dark */
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
             transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
-        
-        /* Scrollbar Dark */
         ::-webkit-scrollbar { width: 8px; height: 8px; } 
         ::-webkit-scrollbar-track { background: #050505; } 
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; } 
         ::-webkit-scrollbar-thumb:hover { background: #E31937; }
-
         input[type=number]::-webkit-inner-spin-button { opacity: 1; filter: invert(1); }
-        
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
@@ -147,8 +144,8 @@
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Arte do Cliente</label>
                             <label class="flex items-center justify-center w-full p-4 border border-dashed border-white/20 bg-white/5 rounded-lg text-gray-400 font-bold cursor-pointer hover:bg-white/10 hover:text-white hover:border-brand-wine transition group">
                                 <i class="fa-solid fa-cloud-arrow-up mr-2 group-hover:text-brand-wine transition"></i>
-                                <span class="text-xs">Carregar Arquivo</span>
-                                <input type="file" @change="adicionarImagemCanvas" accept="image/*" class="hidden">
+                                <span class="text-xs">Carregar (IMG ou PDF)</span>
+                                <input type="file" @change="adicionarImagemCanvas" accept="image/*, application/pdf" class="hidden">
                             </label>
                         </div>
 
@@ -202,7 +199,6 @@
                 </div>
 
                 <div class="flex-1 bg-[#090909] relative flex flex-col items-center overflow-hidden">
-                    
                     <div class="w-full h-12 flex justify-between items-center px-6 border-b border-white/5 bg-brand-card z-10">
                         <div class="flex items-center text-xs font-bold text-gray-500 uppercase">
                             <i class="fa-solid fa-ruler-combined mr-2 text-brand-wine"></i>
@@ -215,16 +211,13 @@
                     </div>
                     
                     <div ref="canvasContainer" class="flex-grow w-full flex items-center justify-center overflow-hidden relative p-10" @click.self="deselecionarArte">
-                        
                         <div v-if="!medidas.largura" class="text-center text-gray-600 select-none">
                             <i class="fa-solid fa-arrow-left text-3xl mb-3 opacity-30"></i>
                             <p class="font-bold text-sm">Selecione um produto no menu</p>
                         </div>
-
                         <div class="canvas-wrapper bg-white" :style="{ transform: `scale(${zoomScale})` }">
                             <canvas id="canvasEditor"></canvas>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -234,7 +227,6 @@
                     <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
                         <i class="fa-solid fa-list-check text-brand-wine"></i> Registro de Atividades
                     </h2>
-                    
                     <div class="glass-panel rounded-xl overflow-hidden">
                         <table class="w-full text-left border-collapse">
                             <thead>
@@ -358,20 +350,73 @@
                 ajustarZoom() {
                     if (!this.medidas.largura || !this.$refs.canvasContainer) return;
                     const container = this.$refs.canvasContainer;
-                    // Margem de segurança
                     let scale = Math.min((container.clientWidth - 80) / (this.medidas.largura * this.pixelsPorCm), (container.clientHeight - 80) / (this.medidas.altura * this.pixelsPorCm));
                     if (scale > 1) scale = 1; this.zoomScale = scale;
                 },
-                adicionarImagemCanvas(e) {
-                    const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
-                    reader.onload = (f) => {
-                        fabric.Image.fromURL(f.target.result, (img) => {
-                            img.set({ cornerColor: '#E31937', cornerStyle: 'circle', borderColor: '#E31937', cornerSize: 15, transparentCorners: false, lockUniScaling: false });
-                            const canvasW = this.canvas.width; if(img.width > canvasW * 0.8) { img.scaleToWidth(canvasW * 0.5); }
-                            this.canvas.add(img); img.center(); this.canvas.setActiveObject(img); this.aoSelecionarObjeto({ selected: [img] });
-                        });
-                    }; reader.readAsDataURL(file); e.target.value = '';
+                
+                // === ATUALIZADO: SUPORTE A PDF ===
+                async adicionarImagemCanvas(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    // Se for PDF
+                    if (file.type === 'application/pdf') {
+                        this.loading = true; // Mostra carregando
+                        try {
+                            const fileReader = new FileReader();
+                            fileReader.onload = async function() {
+                                const typedarray = new Uint8Array(this.result);
+                                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                                const page = await pdf.getPage(1); // Pega apenas a página 1
+                                
+                                // Renderiza PDF em alta resolução (Scale 3)
+                                const viewport = page.getViewport({ scale: 3 });
+                                const canvasTemp = document.createElement('canvas');
+                                const context = canvasTemp.getContext('2d');
+                                canvasTemp.height = viewport.height;
+                                canvasTemp.width = viewport.width;
+
+                                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                                
+                                // Converte para imagem
+                                const imgUrl = canvasTemp.toDataURL('image/png');
+                                
+                                // Carrega no Fabric
+                                fabric.Image.fromURL(imgUrl, (img) => {
+                                    // Configurações do Objeto
+                                    img.set({ cornerColor: '#E31937', cornerStyle: 'circle', borderColor: '#E31937', cornerSize: 15, transparentCorners: false, lockUniScaling: false });
+                                    
+                                    // Ajusta tamanho se for muito grande
+                                    const app = document.getElementById('app').__vue_app__.config.globalProperties.$root || document.querySelector('#app').__vue_app__._instance.proxy;
+                                    const canvasW = app.canvas.width;
+                                    if(img.width > canvasW * 0.8) { img.scaleToWidth(canvasW * 0.5); }
+                                    
+                                    app.canvas.add(img); img.center(); app.canvas.setActiveObject(img); app.aoSelecionarObjeto({ selected: [img] });
+                                    app.loading = false;
+                                });
+                            };
+                            fileReader.readAsArrayBuffer(file);
+                        } catch (err) {
+                            alert("Erro ao ler PDF: " + err.message);
+                            this.loading = false;
+                        }
+                    } 
+                    // Se for Imagem (JPG, PNG) - Código original
+                    else {
+                        const reader = new FileReader();
+                        reader.onload = (f) => {
+                            fabric.Image.fromURL(f.target.result, (img) => {
+                                img.set({ cornerColor: '#E31937', cornerStyle: 'circle', borderColor: '#E31937', cornerSize: 15, transparentCorners: false, lockUniScaling: false });
+                                const canvasW = this.canvas.width; if(img.width > canvasW * 0.8) { img.scaleToWidth(canvasW * 0.5); }
+                                this.canvas.add(img); img.center(); this.canvas.setActiveObject(img); this.aoSelecionarObjeto({ selected: [img] });
+                            });
+                        }; 
+                        reader.readAsDataURL(file);
+                    }
+                    
+                    e.target.value = ''; // Limpa input
                 },
+
                 centralizarArte() { const activeObj = this.canvas.getActiveObject(); if (activeObj) { activeObj.center(); activeObj.setCoords(); } },
                 deselecionarArte() { this.canvas.discardActiveObject(); this.canvas.requestRenderAll(); this.arteSelecionada = false; },
                 async baixarPDF(cor) {
