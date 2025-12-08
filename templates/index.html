@@ -3,119 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Gabaritos - Elo Brindes</title>
+    <title>Gerador de Provas - Elo Brindes</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-100 min-h-screen flex items-center justify-center font-sans">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans">
 
-    <div id="app" class="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
+    <div id="app" class="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
         
-        <div class="bg-indigo-900 p-6 text-white text-center">
-            <h1 class="text-2xl font-bold">🖨️ Gabarito Maker</h1>
-            <p class="text-indigo-200 text-sm">Gerenciador de Facas (Unidade: CM)</p>
-        </div>
+        <div class="w-full md:w-1/2 p-8 bg-white border-r border-gray-100">
+            <h1 class="text-2xl font-bold text-indigo-900 mb-1">🖨️ Prova Digital</h1>
+            <p class="text-gray-500 text-sm mb-6">Gere gabaritos ou simule a arte no produto.</p>
 
-        <div class="flex border-b">
-            <button @click="abaAtual = 'baixar'" 
-                :class="{'border-b-4 border-indigo-600 text-indigo-900 font-bold': abaAtual === 'baixar', 'text-gray-500': abaAtual !== 'baixar'}"
-                class="w-1/2 py-4 transition hover:bg-gray-50">
-                <i class="fa-solid fa-download mr-2"></i> Baixar Gabarito
-            </button>
-            <button @click="abaAtual = 'cadastrar'" 
-                :class="{'border-b-4 border-indigo-600 text-indigo-900 font-bold': abaAtual === 'cadastrar', 'text-gray-500': abaAtual !== 'cadastrar'}"
-                class="w-1/2 py-4 transition hover:bg-gray-50">
-                <i class="fa-solid fa-plus mr-2"></i> Novo Produto
-            </button>
-        </div>
+            <div class="flex bg-gray-100 rounded-lg p-1 mb-6">
+                <button @click="modo = 'catalogo'; limparSelecao()" :class="{'bg-white shadow text-indigo-900': modo==='catalogo', 'text-gray-500': modo!=='catalogo'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Catálogo</button>
+                <button @click="modo = 'custom'; limparSelecao()" :class="{'bg-white shadow text-indigo-900': modo==='custom', 'text-gray-500': modo!=='custom'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Personalizado</button>
+                <button @click="modo = 'novo'" :class="{'bg-white shadow text-indigo-900': modo==='novo', 'text-gray-500': modo!=='novo'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Cadastrar</button>
+            </div>
 
-        <div class="p-8">
-
-            <div v-if="abaAtual === 'baixar'">
-                <div class="mb-6">
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Selecione o Produto</label>
-                    <select v-model="produtoSelecionado" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <option disabled value="">Escolha na lista...</option>
-                        <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">
-                            [[ prod.nome ]] ([[ prod.codigo ]])
-                        </option>
+            <div v-if="modo === 'catalogo'" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Selecione o Produto</label>
+                    <select v-model="produtoSelecionado" @change="atualizarMedidas" class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-indigo-500">
+                        <option value="">Buscar produto...</option>
+                        <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">[[ prod.nome ]] ([[ prod.codigo ]])</option>
                     </select>
                 </div>
+            </div>
 
-                <div v-if="produtoSelecionado" class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-6 text-indigo-900 text-sm grid grid-cols-2 gap-4">
+            <div v-if="modo === 'custom'" class="bg-yellow-50 p-4 rounded-lg border border-yellow-100 mb-4">
+                <p class="text-xs text-yellow-700 mb-2 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Modo Rápido (Não salva no banco)</p>
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <span class="block text-xs text-indigo-400 uppercase">Largura</span>
-                        <span class="font-bold text-lg">[[ produtoSelecionado.largura ]] cm</span>
+                        <label class="text-xs font-bold text-gray-500">Largura (cm)</label>
+                        <input type="number" step="0.1" v-model="medidas.largura" class="w-full p-2 border rounded bg-white">
                     </div>
                     <div>
-                        <span class="block text-xs text-indigo-400 uppercase">Altura</span>
-                        <span class="font-bold text-lg">[[ produtoSelecionado.altura ]] cm</span>
+                        <label class="text-xs font-bold text-gray-500">Altura (cm)</label>
+                        <input type="number" step="0.1" v-model="medidas.altura" class="w-full p-2 border rounded bg-white">
                     </div>
                 </div>
-
-                <div class="mb-8">
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Modo de Saída</label>
-                    <div class="grid grid-cols-2 gap-4">
-                        <label :class="{'bg-indigo-600 text-white shadow-md': modoCor === 'rgb', 'bg-gray-100 text-gray-600': modoCor !== 'rgb'}" class="cursor-pointer p-3 rounded-lg text-center transition border">
-                            <input type="radio" value="rgb" v-model="modoCor" class="hidden">
-                            <div class="font-bold">🖥️ Visual</div>
-                            <div class="text-xs opacity-75">RGB (Tela)</div>
-                        </label>
-                        <label :class="{'bg-indigo-600 text-white shadow-md': modoCor === 'cmyk', 'bg-gray-100 text-gray-600': modoCor !== 'cmyk'}" class="cursor-pointer p-3 rounded-lg text-center transition border">
-                            <input type="radio" value="cmyk" v-model="modoCor" class="hidden">
-                            <div class="font-bold">🖨️ Impressão</div>
-                            <div class="text-xs opacity-75">CMYK (Gráfica)</div>
-                        </label>
-                    </div>
+                <div class="mt-3">
+                    <label class="text-xs font-bold text-gray-500">Nome do Arquivo</label>
+                    <input type="text" v-model="medidas.nome" placeholder="Ex: Logo Cliente X" class="w-full p-2 border rounded bg-white">
                 </div>
+            </div>
 
-                <button 
-                    @click="baixarGabarito" 
-                    :disabled="!produtoSelecionado || loading"
-                    :class="{'opacity-50 cursor-not-allowed': !produtoSelecionado || loading}"
-                    class="w-full bg-green-600 text-white font-bold py-4 rounded-lg hover:bg-green-700 transition shadow-lg flex justify-center items-center">
-                    <span v-if="loading" class="animate-spin h-5 w-5 mr-3 border-2 border-white border-t-transparent rounded-full"></span>
-                    <span v-if="!loading"><i class="fa-solid fa-file-pdf mr-2"></i> Gerar PDF (CM)</span>
-                    <span v-else>Processando...</span>
+             <div v-if="modo === 'novo'" class="space-y-3">
+                <input v-model="novo.nome" placeholder="Nome do Produto" class="w-full p-3 border rounded">
+                <input v-model="novo.codigo" placeholder="SKU / Código" class="w-full p-3 border rounded">
+                <div class="grid grid-cols-2 gap-3">
+                    <input v-model="novo.largura" type="number" step="0.1" placeholder="Largura (cm)" class="w-full p-3 border rounded">
+                    <input v-model="novo.altura" type="number" step="0.1" placeholder="Altura (cm)" class="w-full p-3 border rounded">
+                </div>
+                <button @click="salvarProduto" :disabled="loading" class="w-full bg-indigo-900 text-white font-bold py-3 rounded hover:bg-indigo-800 transition">
+                    [[ loading ? 'Salvando...' : 'Salvar no Directus' ]]
                 </button>
             </div>
 
-            <div v-if="abaAtual === 'cadastrar'">
-                <form @submit.prevent="salvarProduto">
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Nome do Produto</label>
-                        <input v-model="novo.nome" required type="text" placeholder="Ex: Garrafa Térmica" class="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
+            <hr class="my-6 border-gray-200" v-if="modo !== 'novo'">
 
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Código (SKU)</label>
-                        <input v-model="novo.codigo" required type="text" placeholder="Ex: GT-500" class="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+            <div v-if="modo !== 'novo'">
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Upload de Arte (Opcional)</label>
+                    <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition cursor-pointer">
+                        <input type="file" @change="previewImagem" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        <i class="fa-solid fa-cloud-upload-alt text-3xl text-gray-300 mb-2"></i>
+                        <p class="text-sm text-gray-500" v-if="!arquivo">Clique ou arraste a imagem aqui</p>
+                        <p class="text-sm text-green-600 font-bold" v-else>[[ arquivo.name ]]</p>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Largura (cm)</label>
-                            <input v-model="novo.largura" required type="number" step="0.1" placeholder="Ex: 8.5" class="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Altura (cm)</label>
-                            <input v-model="novo.altura" required type="number" step="0.1" placeholder="Ex: 21.0" class="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 outline-none">
-                        </div>
+                    <div v-if="arquivo" class="mt-2 flex items-center">
+                        <input type="checkbox" id="saveDir" v-model="salvarNoDirectus" class="mr-2">
+                        <label for="saveDir" class="text-sm text-gray-600">Salvar backup do arquivo no Directus?</label>
                     </div>
+                </div>
 
-                    <button 
-                        type="submit"
-                        :disabled="loading"
-                        class="w-full bg-indigo-600 text-white font-bold py-4 rounded-lg hover:bg-indigo-700 transition shadow-lg flex justify-center items-center">
-                        <span v-if="loading" class="animate-spin h-5 w-5 mr-3 border-2 border-white border-t-transparent rounded-full"></span>
-                        <span v-if="!loading"><i class="fa-solid fa-save mr-2"></i> Salvar no Directus</span>
-                        <span v-else>Salvando...</span>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <button @click="baixarPDF('rgb')" :disabled="!validar" class="p-3 rounded-lg border border-gray-300 hover:bg-gray-50 flex flex-col items-center justify-center transition">
+                        <span class="text-xl">🖥️</span>
+                        <span class="text-xs font-bold mt-1">PDF Visual (RGB)</span>
                     </button>
-                </form>
+                    <button @click="baixarPDF('cmyk')" :disabled="!validar" class="p-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex flex-col items-center justify-center transition shadow-lg">
+                        <span class="text-xl">🖨️</span>
+                        <span class="text-xs font-bold mt-1">PDF Print (CMYK)</span>
+                    </button>
+                </div>
+                
+                <p v-if="loading" class="text-center text-sm text-indigo-600 font-bold animate-pulse">Gerando PDF...</p>
             </div>
-
         </div>
+
+        <div class="w-full md:w-1/2 bg-gray-200 flex items-center justify-center p-8 relative overflow-hidden">
+            <div class="absolute top-4 right-4 text-xs text-gray-400 font-mono">Preview Tela (RGB)</div>
+            
+            <div :style="estiloPreview" class="bg-white shadow-2xl relative transition-all duration-500 flex items-center justify-center overflow-hidden">
+                <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-fill opacity-90">
+                <div v-else class="text-gray-300 text-center p-4">
+                    <div class="text-4xl mb-2">📏</div>
+                    <p class="text-xs uppercase font-bold">[[ medidas.largura || 0 ]] cm x [[ medidas.altura || 0 ]] cm</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -125,76 +115,113 @@
             compilerOptions: { delimiters: ['[[', ']]'] },
             data() {
                 return {
-                    abaAtual: 'baixar',
+                    modo: 'catalogo', // catalogo | custom | novo
                     loading: false,
-                    modoCor: 'cmyk',
-                    produtoSelecionado: '',
                     listaProdutos: {{ produtos | tojson }},
+                    produtoSelecionado: '',
                     
-                    novo: {
-                        nome: '',
-                        codigo: '',
-                        largura: '',
-                        altura: ''
+                    // Dados de trabalho
+                    medidas: { largura: 0, altura: 0, nome: '' },
+                    arquivo: null,
+                    previewUrl: null,
+                    salvarNoDirectus: true,
+
+                    // Cadastro
+                    novo: { nome: '', codigo: '', largura: '', altura: '' }
+                }
+            },
+            computed: {
+                validar() {
+                    return this.medidas.largura > 0 && this.medidas.altura > 0;
+                },
+                estiloPreview() {
+                    // Lógica para manter a proporção visual na tela (apenas CSS)
+                    const larg = this.medidas.largura || 10;
+                    const alt = this.medidas.altura || 10;
+                    const ratio = larg / alt;
+                    
+                    let w = '300px';
+                    let h = (300 / ratio) + 'px';
+
+                    if (ratio < 1) { // Mais alto que largo
+                        h = '400px';
+                        w = (400 * ratio) + 'px';
+                    }
+
+                    return {
+                        width: w,
+                        height: h
                     }
                 }
             },
             methods: {
-                async baixarGabarito() {
+                limparSelecao() {
+                    this.produtoSelecionado = '';
+                    this.medidas = { largura: 0, altura: 0, nome: '' };
+                    this.arquivo = null;
+                    this.previewUrl = null;
+                },
+                atualizarMedidas() {
+                    if (this.produtoSelecionado) {
+                        this.medidas.largura = this.produtoSelecionado.largura;
+                        this.medidas.altura = this.produtoSelecionado.altura;
+                        this.medidas.nome = this.produtoSelecionado.codigo;
+                    }
+                },
+                previewImagem(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.arquivo = file;
+                        this.previewUrl = URL.createObjectURL(file);
+                    }
+                },
+                async baixarPDF(cor) {
                     this.loading = true;
+                    const formData = new FormData();
+                    formData.append('largura', this.medidas.largura);
+                    formData.append('altura', this.medidas.altura);
+                    formData.append('nome', this.medidas.nome || 'Personalizado');
+                    formData.append('cor', cor);
+                    formData.append('salvar_directus', this.salvarNoDirectus);
+                    
+                    if (this.arquivo) {
+                        formData.append('imagem', this.arquivo);
+                    }
+
                     try {
-                        const response = await fetch('/gerar-gabarito', {
+                        const res = await fetch('/gerar-gabarito', {
                             method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                largura: this.produtoSelecionado.largura,
-                                altura: this.produtoSelecionado.altura,
-                                nome: this.produtoSelecionado.codigo,
-                                cor: this.modoCor
-                            })
+                            body: formData
                         });
+                        
+                        if(!res.ok) throw new Error("Erro na geração");
 
-                        if (!response.ok) throw new Error('Erro ao gerar');
-
-                        const blob = await response.blob();
+                        const blob = await res.blob();
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = `GABARITO_${this.produtoSelecionado.codigo}_${this.modoCor.toUpperCase()}.pdf`;
+                        a.download = `Arte_${this.medidas.nome}_${cor.toUpperCase()}.pdf`;
                         document.body.appendChild(a);
                         a.click();
                         a.remove();
-
-                    } catch (error) {
-                        alert("Erro: " + error.message);
+                    } catch (e) {
+                        alert("Erro: " + e.message);
                     } finally {
                         this.loading = false;
                     }
                 },
-
                 async salvarProduto() {
                     this.loading = true;
                     try {
-                        const response = await fetch('/cadastrar-produto', {
+                        const res = await fetch('/cadastrar-produto', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify(this.novo)
                         });
-
-                        const result = await response.json();
-
-                        if (result.success) {
-                            alert("Produto cadastrado com sucesso!");
-                            window.location.reload();
-                        } else {
-                            alert("Erro ao cadastrar: " + (result.erro || "Desconhecido"));
-                        }
-
-                    } catch (error) {
-                        alert("Erro de conexão: " + error.message);
-                    } finally {
-                        this.loading = false;
-                    }
+                        if(res.ok) window.location.reload();
+                        else alert("Erro ao salvar");
+                    } catch(e) { alert(e.message) }
+                    finally { this.loading = false; }
                 }
             }
         }).mount('#app')
