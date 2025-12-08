@@ -67,7 +67,7 @@
         const { createApp } = Vue
 
         createApp({
-            // ESSA CONFIGURAÇÃO É OBRIGATÓRIA
+            // AQUI ESTÁ A MÁGICA: Mudamos o delimitador do Vue para não conflitar com o Jinja
             compilerOptions: {
                 delimiters: ['[[', ']]'] 
             },
@@ -76,7 +76,7 @@
                     loading: false,
                     modoCor: 'cmyk',
                     produtoSelecionado: '',
-                    // O ÚNICO {{ }} PERMITIDO É ESTE AQUI
+                    // Este trecho o Python (Jinja) PRECISA processar, então deixamos igual
                     listaProdutos: {{ produtos | tojson }} 
                 }
             },
