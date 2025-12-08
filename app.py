@@ -5,6 +5,8 @@ from flask import Flask, render_template, request, send_file, jsonify
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 from reportlab.lib.colors import PCMYKColor
+# NOVA IMPORTAÇÃO NECESSÁRIA:
+from reportlab.lib.utils import ImageReader
 from PIL import Image
 
 app = Flask(__name__)
@@ -52,7 +54,7 @@ def cadastrar_produto():
     except Exception as e:
         return jsonify({"success": False, "erro": str(e)}), 500
 
-# --- ROTA 3: GERAR PDF (CORRIGIDA) ---
+# --- ROTA 3: GERAR PDF (CORRIGIDA COM ImageReader) ---
 @app.route('/gerar-gabarito', methods=['POST'])
 def gerar_gabarito():
     try:
@@ -71,61 +73,52 @@ def gerar_gabarito():
 
         # 2. Lógica de Imagem (Se houver upload)
         if arquivo_upload and arquivo_upload.filename != '':
-            # --- CORREÇÃO DO PONTEIRO: LÊ O ARQUIVO PARA A MEMÓRIA UMA VEZ ---
-            # Isso cria uma cópia segura dos dados brutos
+            # Lê o arquivo para a memória
             imagem_bytes = arquivo_upload.read() 
             
-            # --- PARTE A: UPLOAD PRO DIRECTUS (OPCIONAL) ---
+            # --- UPLOAD PRO DIRECTUS ---
             if salvar_directus:
                 try:
-                    # Cria um stream novo só para o upload
                     stream_para_directus = io.BytesIO(imagem_bytes)
                     files = {'file': (arquivo_upload.filename, stream_para_directus, arquivo_upload.content_type)}
-                    
-                    # Tenta enviar. Se der erro, NÃO para o gerador de PDF.
-                    print("Tentando upload para Directus...")
-                    resp = requests.post(f"{DIRECTUS_URL}/files", headers=HEADERS, files=files, timeout=10)
-                    if resp.status_code not in [200, 201]:
-                        print(f"Erro no Upload Directus: {resp.text}")
-                    else:
-                        print("Upload Directus OK")
-                except Exception as e_upload:
-                    print(f"Falha ao conectar no Directus para upload: {e_upload}")
-                    # Segue a vida, não trava o usuário
+                    requests.post(f"{DIRECTUS_URL}/files", headers=HEADERS, files=files, timeout=5)
+                except Exception as e:
+                    print(f"Erro no upload (não crítico): {e}")
 
-            # --- PARTE B: PROCESSAMENTO PILLOW ---
+            # --- PROCESSAMENTO DA IMAGEM ---
             try:
-                # Cria um stream novo só para o Pillow
                 stream_para_pillow = io.BytesIO(imagem_bytes)
                 img = Image.open(stream_para_pillow)
 
-                # Conversão de Cor
+                # Conversão
                 if modo_cor == 'cmyk':
                     img = img.convert('CMYK')
-                    format_img = 'JPEG' # PDF prefere JPEG para CMYK
+                    format_img = 'JPEG'
                 else:
                     img = img.convert('RGB')
-                    format_img = 'PNG' # PNG preserva transparência em RGB
+                    format_img = 'PNG'
 
-                # Salva a imagem processada em um novo buffer
+                # Salva processada na memória
                 img_buffer_final = io.BytesIO()
                 img.save(img_buffer_final, format=format_img, quality=95)
                 img_buffer_final.seek(0)
 
-                # Desenha no PDF
+                # --- CORREÇÃO AQUI: ImageReader ---
+                # Envolvemos o buffer no ImageReader para o ReportLab não confundir
+                imagem_para_pdf = ImageReader(img_buffer_final)
+
                 c.drawImage(
-                    img_buffer_final, 
+                    imagem_para_pdf, 
                     0, 0, 
                     width=largura*cm, 
                     height=altura*cm,
-                    mask='auto' # Tenta preservar transparência se houver
+                    mask='auto'
                 )
             except Exception as e_img:
-                print(f"Erro ao processar imagem com Pillow: {e_img}")
-                # Se der erro na imagem, gera o PDF branco com o erro escrito (debug visual)
+                print(f"Erro imagem: {e_img}")
                 c.drawString(1*cm, altura/2*cm, f"Erro na imagem: {str(e_img)}")
 
-        # 3. Se não tiver imagem (Gabarito em Branco)
+        # 3. Se não tiver imagem (Fundo Branco)
         else:
              if modo_cor == 'cmyk':
                 c.setFillColor(PCMYKColor(0,0,0,0))
@@ -148,10 +141,7 @@ def gerar_gabarito():
         )
 
     except Exception as e:
-        # LOGA O ERRO REAL NO CONSOLE DO DOKPLOY
-        print(f"ERRO CRÍTICO 500: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"ERRO CRÍTICO: {str(e)}")
         return jsonify({"erro": f"Erro interno: {str(e)}"}), 500
 
 if __name__ == '__main__':
