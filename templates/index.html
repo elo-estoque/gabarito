@@ -6,47 +6,44 @@
     <title>Gerador de Provas - Elo Brindes</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .canvas-container { margin: 0 auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 1px solid #ddd; }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans p-4">
 
-    <div id="app" class="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+    <div id="app" class="w-full max-w-6xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
         
-        <div class="w-full md:w-1/2 p-8 bg-white border-r border-gray-100">
-            <h1 class="text-2xl font-bold text-indigo-900 mb-1">🖨️ Prova Digital</h1>
-            <p class="text-gray-500 text-sm mb-6">Gere gabaritos ou simule a arte no produto.</p>
+        <div class="w-full lg:w-1/3 p-6 bg-white border-r border-gray-100 flex flex-col h-full">
+            <h1 class="text-2xl font-bold text-indigo-900 mb-1">🖨️ Editor de Gabarito</h1>
+            <p class="text-gray-500 text-sm mb-6">Ajuste a arte no gabarito antes de baixar.</p>
 
             <div class="flex bg-gray-100 rounded-lg p-1 mb-6">
-                <button @click="modo = 'catalogo'; limparSelecao()" :class="{'bg-white shadow text-indigo-900': modo==='catalogo', 'text-gray-500': modo!=='catalogo'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Catálogo</button>
-                <button @click="modo = 'custom'; limparSelecao()" :class="{'bg-white shadow text-indigo-900': modo==='custom', 'text-gray-500': modo!=='custom'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Personalizado</button>
-                <button @click="modo = 'novo'" :class="{'bg-white shadow text-indigo-900': modo==='novo', 'text-gray-500': modo!=='novo'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Cadastrar</button>
+                <button @click="modo = 'catalogo'; limparEditor()" :class="{'bg-white shadow text-indigo-900': modo==='catalogo', 'text-gray-500': modo!=='catalogo'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Catálogo</button>
+                <button @click="modo = 'custom'; limparEditor()" :class="{'bg-white shadow text-indigo-900': modo==='custom', 'text-gray-500': modo!=='custom'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Manual</button>
+                <button @click="modo = 'novo'" :class="{'bg-white shadow text-indigo-900': modo==='novo', 'text-gray-500': modo!=='novo'}" class="flex-1 py-2 rounded-md text-sm font-bold transition">Novo Prod.</button>
             </div>
 
-            <div v-if="modo === 'catalogo'" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Selecione o Produto</label>
-                    <select v-model="produtoSelecionado" @change="atualizarMedidas" class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-indigo-500">
-                        <option value="">Buscar produto...</option>
-                        <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">[[ prod.nome ]] ([[ prod.codigo ]])</option>
-                    </select>
-                </div>
+            <div v-if="modo === 'catalogo'" class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Selecione o Produto</label>
+                <select v-model="produtoSelecionado" @change="atualizarMedidas" class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-indigo-500">
+                    <option value="">Buscar produto...</option>
+                    <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">[[ prod.nome ]] ([[ prod.codigo ]])</option>
+                </select>
             </div>
 
             <div v-if="modo === 'custom'" class="bg-yellow-50 p-4 rounded-lg border border-yellow-100 mb-4">
-                <p class="text-xs text-yellow-700 mb-2 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Modo Rápido (Não salva no banco)</p>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs font-bold text-gray-500">Largura (cm)</label>
-                        <input type="number" step="0.1" v-model="medidas.largura" class="w-full p-2 border rounded bg-white">
+                        <input type="number" step="0.1" v-model="medidas.largura" @change="redimensionarCanvas" class="w-full p-2 border rounded bg-white">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-500">Altura (cm)</label>
-                        <input type="number" step="0.1" v-model="medidas.altura" class="w-full p-2 border rounded bg-white">
+                        <input type="number" step="0.1" v-model="medidas.altura" @change="redimensionarCanvas" class="w-full p-2 border rounded bg-white">
                     </div>
-                </div>
-                <div class="mt-3">
-                    <label class="text-xs font-bold text-gray-500">Nome do Arquivo</label>
-                    <input type="text" v-model="medidas.nome" placeholder="Ex: Logo Cliente X" class="w-full p-2 border rounded bg-white">
                 </div>
             </div>
 
@@ -62,47 +59,53 @@
                 </button>
             </div>
 
-            <hr class="my-6 border-gray-200" v-if="modo !== 'novo'">
+            <hr class="my-4 border-gray-200" v-if="modo !== 'novo'">
 
-            <div v-if="modo !== 'novo'">
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Upload de Arte (Opcional)</label>
-                    <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition cursor-pointer">
-                        <input type="file" @change="previewImagem" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                        <i class="fa-solid fa-cloud-upload-alt text-3xl text-gray-300 mb-2"></i>
-                        <p class="text-sm text-gray-500" v-if="!arquivo">Clique ou arraste a imagem aqui</p>
-                        <p class="text-sm text-green-600 font-bold" v-else>[[ arquivo.name ]]</p>
+            <div v-if="modo !== 'novo'" class="flex-grow flex flex-col justify-between">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Adicionar Arte</label>
+                    <label class="flex items-center justify-center w-full p-4 border-2 border-dashed border-indigo-200 rounded-lg text-indigo-600 font-bold cursor-pointer hover:bg-indigo-50 transition mb-4">
+                        <i class="fa-solid fa-image mr-2"></i> Carregar Imagem
+                        <input type="file" @change="adicionarImagemCanvas" accept="image/*" class="hidden">
+                    </label>
+
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <button @click="centralizarArte" class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded text-xs font-bold"><i class="fa-solid fa-compress mr-1"></i> Centralizar</button>
+                        <button @click="preencherArte" class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded text-xs font-bold"><i class="fa-solid fa-expand mr-1"></i> Preencher</button>
+                        <button @click="limparCanvas" class="col-span-2 bg-red-100 hover:bg-red-200 text-red-600 py-2 rounded text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Limpar Arte</button>
                     </div>
-                    <div v-if="arquivo" class="mt-2 flex items-center">
-                        <input type="checkbox" id="saveDir" v-model="salvarNoDirectus" class="mr-2">
-                        <label for="saveDir" class="text-sm text-gray-600">Salvar backup do arquivo no Directus?</label>
+
+                    <div class="flex items-center mb-4">
+                        <input type="checkbox" id="saveDir" v-model="salvarNoDirectus" class="mr-2 h-4 w-4">
+                        <label for="saveDir" class="text-xs text-gray-600 font-bold">Salvar arquivo final no Directus?</label>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <button @click="baixarPDF('rgb')" :disabled="!validar" class="p-3 rounded-lg border border-gray-300 hover:bg-gray-50 flex flex-col items-center justify-center transition">
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                    <button @click="baixarPDF('rgb')" :disabled="!validar" class="p-3 rounded bg-white border border-gray-300 hover:bg-gray-50 flex flex-col items-center justify-center transition">
                         <span class="text-xl">🖥️</span>
-                        <span class="text-xs font-bold mt-1">PDF Visual (RGB)</span>
+                        <span class="text-xs font-bold mt-1">Visual (RGB)</span>
                     </button>
-                    <button @click="baixarPDF('cmyk')" :disabled="!validar" class="p-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex flex-col items-center justify-center transition shadow-lg">
+                    <button @click="baixarPDF('cmyk')" :disabled="!validar" class="p-3 rounded bg-indigo-600 text-white hover:bg-indigo-700 flex flex-col items-center justify-center transition shadow-lg">
                         <span class="text-xl">🖨️</span>
-                        <span class="text-xs font-bold mt-1">PDF Print (CMYK)</span>
+                        <span class="text-xs font-bold mt-1">Print (CMYK)</span>
                     </button>
                 </div>
-                
-                <p v-if="loading" class="text-center text-sm text-indigo-600 font-bold animate-pulse">Gerando PDF...</p>
+                <p v-if="loading" class="text-center text-xs text-indigo-600 font-bold mt-2 animate-pulse">Processando alta resolução...</p>
             </div>
         </div>
 
-        <div class="w-full md:w-1/2 bg-gray-200 flex items-center justify-center p-8 relative overflow-hidden">
-            <div class="absolute top-4 right-4 text-xs text-gray-400 font-mono">Preview Tela (RGB)</div>
+        <div class="w-full lg:w-2/3 bg-gray-200 relative flex items-center justify-center p-4 overflow-auto">
+            <div class="absolute top-4 right-4 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                [[ medidas.largura ]]cm x [[ medidas.altura ]]cm
+            </div>
             
-            <div :style="estiloPreview" class="bg-white shadow-2xl relative transition-all duration-500 flex items-center justify-center overflow-hidden">
-                <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-fill opacity-90">
-                <div v-else class="text-gray-300 text-center p-4">
-                    <div class="text-4xl mb-2">📏</div>
-                    <p class="text-xs uppercase font-bold">[[ medidas.largura || 0 ]] cm x [[ medidas.altura || 0 ]] cm</p>
-                </div>
+            <div class="relative shadow-2xl bg-white">
+                <canvas id="canvasEditor"></canvas>
+            </div>
+            
+            <div v-if="!medidas.largura" class="absolute inset-0 flex items-center justify-center text-gray-400 font-bold">
+                Selecione um produto para começar
             </div>
         </div>
 
@@ -115,92 +118,166 @@
             compilerOptions: { delimiters: ['[[', ']]'] },
             data() {
                 return {
-                    modo: 'catalogo', // catalogo | custom | novo
+                    modo: 'catalogo',
                     loading: false,
                     listaProdutos: {{ produtos | tojson }},
                     produtoSelecionado: '',
-                    
-                    // Dados de trabalho
+                    canvas: null, // Instância do FabricJS
                     medidas: { largura: 0, altura: 0, nome: '' },
-                    arquivo: null,
-                    previewUrl: null,
                     salvarNoDirectus: true,
-
-                    // Cadastro
-                    novo: { nome: '', codigo: '', largura: '', altura: '' }
+                    novo: { nome: '', codigo: '', largura: '', altura: '' },
+                    // Fator de conversão: 1cm = 37.79px (aproximado para tela), usaremos Zoom
+                    pixelsPorCm: 40 
                 }
             },
             computed: {
                 validar() {
                     return this.medidas.largura > 0 && this.medidas.altura > 0;
-                },
-                estiloPreview() {
-                    // Lógica para manter a proporção visual na tela (apenas CSS)
-                    const larg = this.medidas.largura || 10;
-                    const alt = this.medidas.altura || 10;
-                    const ratio = larg / alt;
-                    
-                    let w = '300px';
-                    let h = (300 / ratio) + 'px';
-
-                    if (ratio < 1) { // Mais alto que largo
-                        h = '400px';
-                        w = (400 * ratio) + 'px';
-                    }
-
-                    return {
-                        width: w,
-                        height: h
-                    }
                 }
             },
+            mounted() {
+                // Inicializa o Fabric Canvas
+                this.canvas = new fabric.Canvas('canvasEditor', {
+                    backgroundColor: '#fff',
+                    preserveObjectStacking: true
+                });
+            },
             methods: {
-                limparSelecao() {
+                // --- FUNÇÕES DO EDITOR ---
+                limparEditor() {
                     this.produtoSelecionado = '';
                     this.medidas = { largura: 0, altura: 0, nome: '' };
-                    this.arquivo = null;
-                    this.previewUrl = null;
+                    this.canvas.clear();
+                    this.canvas.setBackgroundColor('#fff', this.canvas.renderAll.bind(this.canvas));
+                    this.canvas.setDimensions({ width: 0, height: 0 });
                 },
+
                 atualizarMedidas() {
                     if (this.produtoSelecionado) {
                         this.medidas.largura = this.produtoSelecionado.largura;
                         this.medidas.altura = this.produtoSelecionado.altura;
                         this.medidas.nome = this.produtoSelecionado.codigo;
+                        this.redimensionarCanvas();
                     }
                 },
-                previewImagem(event) {
-                    const file = event.target.files[0];
-                    if (file) {
-                        this.arquivo = file;
-                        this.previewUrl = URL.createObjectURL(file);
+
+                redimensionarCanvas() {
+                    // Define o tamanho visual do canvas baseado nos CM
+                    const w = this.medidas.largura * this.pixelsPorCm;
+                    const h = this.medidas.altura * this.pixelsPorCm;
+                    
+                    this.canvas.setDimensions({ width: w, height: h });
+                    this.canvas.renderAll();
+                },
+
+                adicionarImagemCanvas(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (f) => {
+                        fabric.Image.fromURL(f.target.result, (img) => {
+                            // Ajusta imagem para caber no canvas se for muito grande
+                            const canvasW = this.canvas.width;
+                            const canvasH = this.canvas.height;
+                            
+                            // Escala inicial inteligente
+                            if(img.width > canvasW || img.height > canvasH) {
+                                img.scaleToWidth(canvasW * 0.8);
+                            }
+                            
+                            img.set({
+                                originX: 'center',
+                                originY: 'center',
+                                left: canvasW / 2,
+                                top: canvasH / 2,
+                                cornerColor: '#4f46e5',
+                                cornerStyle: 'circle',
+                                transparentCorners: false,
+                                borderColor: '#4f46e5',
+                                cornerSize: 12
+                            });
+
+                            this.canvas.add(img);
+                            this.canvas.setActiveObject(img);
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                    // Reseta o input para permitir carregar a mesma imagem
+                    e.target.value = '';
+                },
+
+                centralizarArte() {
+                    const activeObj = this.canvas.getActiveObject();
+                    if (activeObj) {
+                        activeObj.center();
                     }
                 },
+                
+                preencherArte() {
+                    const activeObj = this.canvas.getActiveObject();
+                    if (activeObj) {
+                        // Estica para cobrir tudo (pode distorcer, conforme pedido)
+                        activeObj.set({
+                            scaleX: this.canvas.width / activeObj.width,
+                            scaleY: this.canvas.height / activeObj.height,
+                            left: this.canvas.width / 2,
+                            top: this.canvas.height / 2,
+                            originX: 'center',
+                            originY: 'center'
+                        });
+                        this.canvas.renderAll();
+                    }
+                },
+
+                limparCanvas() {
+                    // Remove objetos (artes), mantém fundo branco
+                    this.canvas.remove(...this.canvas.getObjects());
+                },
+
+                // --- GERAÇÃO DO PDF ---
                 async baixarPDF(cor) {
                     this.loading = true;
+                    
+                    // 1. Tira o foco da seleção (para não sair as bordas de edição azul)
+                    this.canvas.discardActiveObject();
+                    this.canvas.renderAll();
+
+                    // 2. Exporta o canvas como BLOB (Imagem) de Alta Resolução
+                    // Multiplier 4 garante que a imagem vá com alta qualidade para o PDF
+                    const dataUrl = this.canvas.toDataURL({
+                        format: 'png',
+                        multiplier: 4 // Aumenta a resolução em 4x
+                    });
+
+                    // Converte DataURL para Blob
+                    const res = await fetch(dataUrl);
+                    const blobImagem = await res.blob();
+
+                    // 3. Monta o formulário igual ao app.py espera
                     const formData = new FormData();
                     formData.append('largura', this.medidas.largura);
                     formData.append('altura', this.medidas.altura);
-                    formData.append('nome', this.medidas.nome || 'Personalizado');
+                    formData.append('nome', this.medidas.nome || 'Editado');
                     formData.append('cor', cor);
                     formData.append('salvar_directus', this.salvarNoDirectus);
                     
-                    if (this.arquivo) {
-                        formData.append('imagem', this.arquivo);
-                    }
+                    // Aqui está o segredo: Enviamos o canvas como se fosse o arquivo 'imagem'
+                    formData.append('imagem', blobImagem, `arte_editada_${this.medidas.nome}.png`);
 
                     try {
-                        const res = await fetch('/gerar-gabarito', {
+                        const response = await fetch('/gerar-gabarito', {
                             method: 'POST',
                             body: formData
                         });
                         
-                        if(!res.ok) throw new Error("Erro na geração");
+                        if(!response.ok) throw new Error("Erro na geração");
 
-                        const blob = await res.blob();
+                        const blob = await response.blob();
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = `Arte_${this.medidas.nome}_${cor.toUpperCase()}.pdf`;
+                        a.download = `Prova_${this.medidas.nome}_${cor.toUpperCase()}.pdf`;
                         document.body.appendChild(a);
                         a.click();
                         a.remove();
@@ -210,6 +287,8 @@
                         this.loading = false;
                     }
                 },
+
+                // --- SALVAR PRODUTO NOVO (Igual antes) ---
                 async salvarProduto() {
                     this.loading = true;
                     try {
