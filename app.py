@@ -8,14 +8,13 @@ from reportlab.lib.colors import PCMYKColor
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÕES VIA VARIÁVEIS DE AMBIENTE ---
-# Nenhuma chave fica aqui. Tudo vem do Dokploy.
+# --- CONFIGURAÇÕES VIA VARIÁVEIS DE AMBIENTE (DOKPLOY) ---
 DIRECTUS_URL = os.environ.get("DIRECTUS_URL")
 DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN")
 
-# Verifica se as variáveis foram carregadas (Debug no log do servidor)
+# Verifica se as variáveis existem (apenas alerta no log)
 if not DIRECTUS_URL or not DIRECTUS_TOKEN:
-    print("⚠️  ALERTA: Variáveis de Ambiente (URL ou TOKEN) não foram encontradas!")
+    print("⚠️  ALERTA: Variáveis de Ambiente não configuradas corretamente no Dokploy!")
 
 # Headers padrão
 HEADERS = {
@@ -23,20 +22,18 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# --- ROTA 1: PÁGINA INICIAL ---
+# --- ROTA 1: FRONTEND ---
 @app.route('/')
 def index():
     try:
-        # Busca produtos (Status = Published)
         r = requests.get(f"{DIRECTUS_URL}/items/produtos?filter[status][_eq]=published&limit=-1", headers=HEADERS)
-        
         if r.status_code == 200:
             produtos = r.json().get('data', [])
         else:
-            print(f"Erro Directus ({r.status_code}): {r.text}")
+            print(f"Erro Directus: {r.text}")
             produtos = []
     except Exception as e:
-        print(f"Erro de conexão: {e}")
+        print(f"Erro conexão: {e}")
         produtos = []
 
     return render_template('index.html', produtos=produtos)
@@ -65,7 +62,7 @@ def cadastrar_produto():
     except Exception as e:
         return jsonify({"success": False, "erro": str(e)}), 500
 
-# --- ROTA 3: GERADOR DE PDF ---
+# --- ROTA 3: GERADOR DE PDF (ATUALIZADA) ---
 @app.route('/gerar-gabarito', methods=['POST'])
 def gerar_gabarito():
     try:
@@ -76,22 +73,27 @@ def gerar_gabarito():
         modo_cor = data.get('cor', 'cmyk')
 
         buffer = io.BytesIO()
+        
+        # Cria a página com o tamanho exato do produto
         c = canvas.Canvas(buffer, pagesize=(largura * mm, altura * mm))
         
+        # --- ALTERAÇÃO: FUNDO BRANCO E SEM TEXTO ---
+        
+        # Define a cor BRANCA dependendo do modo
         if modo_cor == 'cmyk':
-            c.setFillColor(PCMYKColor(100, 0, 0, 0, alpha=100))
-            c.setStrokeColor(PCMYKColor(100, 0, 0, 0, alpha=100))
+            # Branco em CMYK (0,0,0,0)
+            c.setFillColor(PCMYKColor(0, 0, 0, 0))
+            c.setStrokeColor(PCMYKColor(0, 0, 0, 0))
         else:
-            c.setFillColorRGB(0, 1, 1)
-            c.setStrokeColorRGB(0, 1, 1)
+            # Branco em RGB (1,1,1)
+            c.setFillColorRGB(1, 1, 1)
+            c.setStrokeColorRGB(1, 1, 1)
 
+        # Desenha o retângulo branco cobrindo tudo (para garantir que não seja transparente)
         c.rect(0, 0, largura * mm, altura * mm, fill=1, stroke=0)
 
-        # Texto técnico
-        c.setFillColor(PCMYKColor(0, 0, 0, 100)) if modo_cor == 'cmyk' else c.setFillColorRGB(0, 0, 0)
-        c.setFont("Helvetica", 8)
-        c.drawString(2 * mm, 2 * mm, f"{nome} - {largura}mm x {altura}mm - {modo_cor.upper()}")
-
+        # OBS: Removida a parte que desenhava o texto (c.drawString)
+        
         c.showPage()
         c.save()
         
