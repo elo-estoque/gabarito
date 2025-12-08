@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Elo Brindes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-indigo-900 min-h-screen flex items-center justify-center font-sans p-4">
+    <div class="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-indigo-900 mb-2">Elo Brindes</h1>
+            <p class="text-gray-500 text-sm">Acesso restrito ao time de Design</p>
+        </div>
+
+        {% if erro %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm font-bold text-center">
+            {{ erro }}
+        </div>
+        {% endif %}
+
+        <form action="/login" method="POST">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">E-mail</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-envelope"></i></span>
+                    <input type="email" name="email" required class="w-full pl-10 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="seu@email.com">
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Senha</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" name="password" required class="w-full pl-10 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="********">
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition shadow-lg">
+                Entrar no Sistema
+            </button>
+        </form>
+    </div>
+</body>
+</html>
