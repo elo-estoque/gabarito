@@ -14,10 +14,11 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
         }
-        /* Estilo para inputs numéricos ficarem mais bonitos */
         input[type=number]::-webkit-inner-spin-button {
             opacity: 1;
         }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans p-4">
@@ -34,10 +35,21 @@
             </div>
 
             <div v-if="modo === 'catalogo'" class="mb-4">
-                <select v-model="produtoSelecionado" @change="atualizarMedidas" class="w-full p-2 border border-gray-300 rounded text-sm outline-none focus:border-indigo-500">
+                <select v-model="produtoSelecionado" @change="atualizarMedidas" class="w-full p-2 border border-gray-300 rounded text-sm outline-none focus:border-indigo-500 mb-2">
                     <option value="">Buscar produto...</option>
                     <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">[[ prod.nome ]] ([[ prod.codigo ]])</option>
                 </select>
+
+                <div v-if="produtoSelecionado" class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex justify-between items-center animate-fade-in shadow-sm">
+                    <div class="text-center w-1/2 border-r border-indigo-200">
+                        <span class="block text-[10px] text-indigo-400 uppercase font-bold tracking-wider">Largura</span>
+                        <span class="block text-lg font-extrabold text-indigo-900">[[ medidas.largura ]] cm</span>
+                    </div>
+                    <div class="text-center w-1/2">
+                        <span class="block text-[10px] text-indigo-400 uppercase font-bold tracking-wider">Altura</span>
+                        <span class="block text-lg font-extrabold text-indigo-900">[[ medidas.altura ]] cm</span>
+                    </div>
+                </div>
             </div>
 
             <div v-if="modo === 'custom'" class="bg-yellow-50 p-3 rounded-lg border border-yellow-100 mb-4">
@@ -63,34 +75,43 @@
                     <input type="file" @change="adicionarImagemCanvas" accept="image/*" class="hidden">
                 </label>
 
-                <div v-if="arteSelecionada" class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4 animate-fade-in">
+                <div v-if="arteSelecionada" class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4 shadow-sm transition-all">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-bold text-indigo-900 uppercase"><i class="fa-solid fa-image mr-1"></i> Medidas da Arte</span>
-                        <button @click="excluirArte" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                        <span class="text-xs font-bold text-indigo-900 uppercase"><i class="fa-solid fa-sliders mr-1"></i> Editar Arte</span>
+                        <button @click="excluirArte" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash"></i></button>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-2 mb-2">
                         <div>
                             <label class="text-[10px] font-bold text-gray-500">Largura (cm)</label>
-                            <input type="number" step="0.1" v-model="medidasArte.largura" @input="atualizarArtePeloInput('w')" class="w-full p-1 border border-indigo-200 rounded text-sm text-center font-bold text-indigo-900">
+                            <input type="number" step="0.1" v-model="medidasArte.largura" @input="atualizarArtePeloInput('w')" class="w-full p-1 border border-indigo-200 rounded text-sm text-center font-bold text-indigo-900 bg-white">
                         </div>
                         <div>
                             <label class="text-[10px] font-bold text-gray-500">Altura (cm)</label>
-                            <input type="number" step="0.1" v-model="medidasArte.altura" @input="atualizarArtePeloInput('h')" class="w-full p-1 border border-indigo-200 rounded text-sm text-center font-bold text-indigo-900">
+                            <input type="number" step="0.1" v-model="medidasArte.altura" @input="atualizarArtePeloInput('h')" class="w-full p-1 border border-indigo-200 rounded text-sm text-center font-bold text-indigo-900 bg-white">
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between">
-                        <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" v-model="bloquearProporcao" class="mr-2 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                            <span class="text-[10px] font-bold text-gray-600">
-                                <i :class="bloquearProporcao ? 'fa-solid fa-lock' : 'fa-solid fa-lock-open'"></i> Travar Proporção
+                    <div class="flex items-center justify-between mt-3">
+                        <label class="flex items-center cursor-pointer select-none">
+                            <input type="checkbox" v-model="bloquearProporcao" class="mr-1.5 h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <span class="text-[10px] font-bold text-gray-600 flex items-center">
+                                <i :class="bloquearProporcao ? 'fa-solid fa-link mr-1' : 'fa-solid fa-link-slash mr-1 opacity-50'"></i> Travar
                             </span>
                         </label>
-                        <button @click="centralizarArte" class="text-[10px] bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-50">Centralizar</button>
+                        
+                        <div class="flex space-x-1">
+                            <button @click="centralizarArte" class="text-[10px] bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100 transition" title="Centralizar">
+                                <i class="fa-solid fa-crosshairs"></i>
+                            </button>
+                            <button @click="preencherArte" class="text-[10px] bg-indigo-600 border border-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition" title="Preencher Tudo">
+                                <i class="fa-solid fa-expand"></i> Preencher
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div v-else class="text-center text-gray-400 text-xs py-4 border border-gray-100 rounded mb-4">
+
+                <div v-else class="text-center text-gray-400 text-xs py-4 border border-gray-100 rounded mb-4 border-dashed">
                     Clique na imagem para editar medidas
                 </div>
 
@@ -157,10 +178,9 @@
                     pixelsPorCm: 60, 
                     zoomScale: 1,
                     
-                    // CONTROLE DA ARTE
-                    arteSelecionada: false, // Se tem algo clicado
-                    medidasArte: { largura: 0, altura: 0 }, // Medidas do objeto clicado
-                    bloquearProporcao: false // Checkbox para travar proporção
+                    arteSelecionada: false, 
+                    medidasArte: { largura: 0, altura: 0 },
+                    bloquearProporcao: false
                 }
             },
             computed: {
@@ -174,7 +194,6 @@
                     preserveObjectStacking: true
                 });
 
-                // EVENTOS DO CANVAS (Para atualizar os inputs quando arrasta com mouse)
                 this.canvas.on('selection:created', this.aoSelecionarObjeto);
                 this.canvas.on('selection:updated', this.aoSelecionarObjeto);
                 this.canvas.on('selection:cleared', this.aoDeselecionarObjeto);
@@ -189,8 +208,6 @@
                     const obj = e.selected[0];
                     if (!obj) return;
                     this.arteSelecionada = true;
-                    // Calcula CM baseado nos Pixels atuais e Escala
-                    // Largura Real = (LarguraOriginal * EscalaX) / PixelsPorCm
                     this.medidasArte.largura = parseFloat(((obj.width * obj.scaleX) / this.pixelsPorCm).toFixed(2));
                     this.medidasArte.altura = parseFloat(((obj.height * obj.scaleY) / this.pixelsPorCm).toFixed(2));
                 },
@@ -200,7 +217,6 @@
                 },
 
                 aoModificarObjeto() {
-                    // Quando arrasta com o mouse, atualiza o input numérico
                     const obj = this.canvas.getActiveObject();
                     if (!obj) return;
                     this.medidasArte.largura = parseFloat(((obj.width * obj.scaleX) / this.pixelsPorCm).toFixed(2));
@@ -212,30 +228,35 @@
                     if (!obj) return;
 
                     if (tipo === 'w') {
-                        // O usuário digitou nova largura em CM
-                        // Nova Escala = (NovosCM * PixelsPorCm) / LarguraOriginal
                         const novaEscalaX = (this.medidasArte.largura * this.pixelsPorCm) / obj.width;
                         obj.set('scaleX', novaEscalaX);
-                        
-                        // Se proporção estiver travada, ajusta altura junto
                         if (this.bloquearProporcao) {
                             obj.scaleToWidth(this.medidasArte.largura * this.pixelsPorCm);
-                            // Atualiza o input de altura para refletir a mudança
                             this.medidasArte.altura = parseFloat(((obj.height * obj.scaleY) / this.pixelsPorCm).toFixed(2));
                         }
                     } 
                     else if (tipo === 'h') {
                         const novaEscalaY = (this.medidasArte.altura * this.pixelsPorCm) / obj.height;
                         obj.set('scaleY', novaEscalaY);
-
                         if (this.bloquearProporcao) {
                             obj.scaleToHeight(this.medidasArte.altura * this.pixelsPorCm);
                             this.medidasArte.largura = parseFloat(((obj.width * obj.scaleX) / this.pixelsPorCm).toFixed(2));
                         }
                     }
-
-                    obj.setCoords(); // Recalcula posição
+                    obj.setCoords(); 
                     this.canvas.renderAll();
+                },
+
+                preencherArte() {
+                    const activeObj = this.canvas.getActiveObject();
+                    if (activeObj) {
+                        activeObj.scaleX = this.canvas.width / activeObj.width;
+                        activeObj.scaleY = this.canvas.height / activeObj.height;
+                        activeObj.center();
+                        activeObj.setCoords();
+                        this.canvas.requestRenderAll();
+                        this.aoModificarObjeto();
+                    }
                 },
 
                 excluirArte() {
@@ -244,7 +265,6 @@
                     this.arteSelecionada = false;
                 },
 
-                // --- OUTROS MÉTODOS EXISTENTES ---
                 limparEditor() {
                     this.produtoSelecionado = '';
                     this.medidas = { largura: 0, altura: 0, nome: '' };
@@ -285,26 +305,22 @@
                     const reader = new FileReader();
                     reader.onload = (f) => {
                         fabric.Image.fromURL(f.target.result, (img) => {
-                            // Configurações para facilitar edição
                             img.set({
                                 cornerColor: '#4f46e5',
                                 cornerStyle: 'circle',
                                 borderColor: '#4f46e5',
                                 cornerSize: 15,
                                 transparentCorners: false,
-                                lockUniScaling: false // Permite esticar livremente
+                                lockUniScaling: false
                             });
-
-                            // Tamanho inicial amigável (50% do canvas)
                             const canvasW = this.canvas.width;
                             if(img.width > canvasW * 0.5) {
                                 img.scaleToWidth(canvasW * 0.5);
                             }
-                            
                             this.canvas.add(img);
                             img.center();
                             this.canvas.setActiveObject(img);
-                            this.aoSelecionarObjeto({ selected: [img] }); // Força atualizar inputs
+                            this.aoSelecionarObjeto({ selected: [img] });
                         });
                     };
                     reader.readAsDataURL(file);
@@ -324,8 +340,7 @@
                 },
                 async baixarPDF(cor) {
                     this.loading = true;
-                    this.canvas.discardActiveObject(); // Tira a seleção azul para a foto
-                    this.canvas.renderAll();
+                    this.canvas.discardActiveObject(); 
 
                     const dataUrl = this.canvas.toDataURL({ format: 'png', multiplier: 2 });
                     const res = await fetch(dataUrl);
