@@ -21,13 +21,17 @@ HEADERS = {
 @app.route('/')
 def index():
     try:
-        r = requests.get(f"{DIRECTUS_URL}/items/produtos?filter[status][_eq]=published&limit=-1", headers=HEADERS)
-        produtos = r.json().get('data', []) if r.status_code == 200 else []
-    except:
+        if DIRECTUS_URL:
+            r = requests.get(f"{DIRECTUS_URL}/items/produtos?filter[status][_eq]=published&limit=-1", headers=HEADERS, timeout=5)
+            produtos = r.json().get('data', []) if r.status_code == 200 else []
+        else:
+            produtos = []
+    except Exception as e:
+        print(f"Erro ao buscar produtos: {e}")
         produtos = []
     return render_template('index.html', produtos=produtos)
 
-# --- ROTA 2: CADASTRAR PRODUTO (Mantida) ---
+# --- ROTA 2: CADASTRAR PRODUTO ---
 @app.route('/cadastrar-produto', methods=['POST'])
 def cadastrar_produto():
     data = request.json
@@ -40,7 +44,6 @@ def cadastrar_produto():
             "altura": float(data.get('altura')),
             "tipo_gabarito": "retangular"
         }
-        # Envia JSON
         r = requests.post(f"{DIRECTUS_URL}/items/produtos", headers={"Authorization": f"Bearer {DIRECTUS_TOKEN}", "Content-Type": "application/json"}, json=novo_produto)
         
         if r.status_code in [200, 201]:
@@ -49,66 +52,81 @@ def cadastrar_produto():
     except Exception as e:
         return jsonify({"success": False, "erro": str(e)}), 500
 
-# --- ROTA 3: GERAR PDF (COM UPLOAD E CMYK) ---
+# --- ROTA 3: GERAR PDF (CORRIGIDA) ---
 @app.route('/gerar-gabarito', methods=['POST'])
 def gerar_gabarito():
     try:
-        # Recebe dados do formulário (Multipart)
+        # 1. Recebe dados
         largura = float(request.form.get('largura'))
         altura = float(request.form.get('altura'))
         nome = request.form.get('nome', 'Gabarito')
         modo_cor = request.form.get('cor', 'cmyk')
         salvar_directus = request.form.get('salvar_directus') == 'true'
         
-        arquivo_upload = request.files.get('imagem') # O arquivo enviado
+        arquivo_upload = request.files.get('imagem')
 
-        buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=(largura * cm, altura * cm))
+        # Cria o canvas do PDF
+        buffer_pdf = io.BytesIO()
+        c = canvas.Canvas(buffer_pdf, pagesize=(largura * cm, altura * cm))
 
-        # 1. Se tiver imagem, processa e coloca no PDF
-        if arquivo_upload:
-            # Abre a imagem com Pillow
-            img = Image.open(arquivo_upload)
+        # 2. Lógica de Imagem (Se houver upload)
+        if arquivo_upload and arquivo_upload.filename != '':
+            # --- CORREÇÃO DO PONTEIRO: LÊ O ARQUIVO PARA A MEMÓRIA UMA VEZ ---
+            # Isso cria uma cópia segura dos dados brutos
+            imagem_bytes = arquivo_upload.read() 
             
-            # Salva no Directus se solicitado
+            # --- PARTE A: UPLOAD PRO DIRECTUS (OPCIONAL) ---
             if salvar_directus:
-                # Rebobina o arquivo para enviar ao Directus
-                arquivo_upload.seek(0)
-                files = {'file': (arquivo_upload.filename, arquivo_upload, arquivo_upload.content_type)}
                 try:
-                    # Upload para directus_files
-                    requests.post(f"{DIRECTUS_URL}/files", headers=HEADERS, files=files)
-                except Exception as e:
-                    print(f"Erro ao salvar no Directus: {e}")
+                    # Cria um stream novo só para o upload
+                    stream_para_directus = io.BytesIO(imagem_bytes)
+                    files = {'file': (arquivo_upload.filename, stream_para_directus, arquivo_upload.content_type)}
+                    
+                    # Tenta enviar. Se der erro, NÃO para o gerador de PDF.
+                    print("Tentando upload para Directus...")
+                    resp = requests.post(f"{DIRECTUS_URL}/files", headers=HEADERS, files=files, timeout=10)
+                    if resp.status_code not in [200, 201]:
+                        print(f"Erro no Upload Directus: {resp.text}")
+                    else:
+                        print("Upload Directus OK")
+                except Exception as e_upload:
+                    print(f"Falha ao conectar no Directus para upload: {e_upload}")
+                    # Segue a vida, não trava o usuário
 
-            # Conversão de Cor para o PDF
-            if modo_cor == 'cmyk':
-                # Converte para CMYK real para o PDF
-                img = img.convert('CMYK')
-            else:
-                img = img.convert('RGB')
+            # --- PARTE B: PROCESSAMENTO PILLOW ---
+            try:
+                # Cria um stream novo só para o Pillow
+                stream_para_pillow = io.BytesIO(imagem_bytes)
+                img = Image.open(stream_para_pillow)
 
-            # Salva imagem temporária processada para inserir no PDF
-            img_buffer = io.BytesIO()
-            # PDF exige JPEG para CMYK ou PNG para RGB/Alpha
-            format_img = 'JPEG' if modo_cor == 'cmyk' else 'PNG'
-            img.save(img_buffer, format=format_img, quality=95)
-            img_buffer.seek(0)
+                # Conversão de Cor
+                if modo_cor == 'cmyk':
+                    img = img.convert('CMYK')
+                    format_img = 'JPEG' # PDF prefere JPEG para CMYK
+                else:
+                    img = img.convert('RGB')
+                    format_img = 'PNG' # PNG preserva transparência em RGB
 
-            # Desenha a imagem esticada no tamanho total (Fit to Page)
-            # preserveAspectRatio=True manteria a proporção, mas aqui vamos preencher
-            c.drawImage(
-                request.files['imagem'].filename if not salvar_directus else "temp_img", # label dummy
-                img_buffer, 
-                0, 0, 
-                width=largura*cm, 
-                height=altura*cm,
-                mask='auto'
-            )
+                # Salva a imagem processada em um novo buffer
+                img_buffer_final = io.BytesIO()
+                img.save(img_buffer_final, format=format_img, quality=95)
+                img_buffer_final.seek(0)
 
-        # 2. Desenha o Retângulo de Contorno (Gabarito)
-        # Se não tiver imagem, fundo branco. Se tiver, transparente em cima.
-        if not arquivo_upload:
+                # Desenha no PDF
+                c.drawImage(
+                    img_buffer_final, 
+                    0, 0, 
+                    width=largura*cm, 
+                    height=altura*cm,
+                    mask='auto' # Tenta preservar transparência se houver
+                )
+            except Exception as e_img:
+                print(f"Erro ao processar imagem com Pillow: {e_img}")
+                # Se der erro na imagem, gera o PDF branco com o erro escrito (debug visual)
+                c.drawString(1*cm, altura/2*cm, f"Erro na imagem: {str(e_img)}")
+
+        # 3. Se não tiver imagem (Gabarito em Branco)
+        else:
              if modo_cor == 'cmyk':
                 c.setFillColor(PCMYKColor(0,0,0,0))
              else:
@@ -118,19 +136,23 @@ def gerar_gabarito():
         c.showPage()
         c.save()
         
-        buffer.seek(0)
+        buffer_pdf.seek(0)
         extensao = "CMYK" if modo_cor == 'cmyk' else "RGB"
         tipo = "COM_ARTE" if arquivo_upload else "GABARITO"
 
         return send_file(
-            buffer,
+            buffer_pdf,
             as_attachment=True,
             download_name=f"{tipo}_{nome}_{extensao}.pdf",
             mimetype='application/pdf'
         )
 
     except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+        # LOGA O ERRO REAL NO CONSOLE DO DOKPLOY
+        print(f"ERRO CRÍTICO 500: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"erro": f"Erro interno: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
