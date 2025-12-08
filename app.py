@@ -32,7 +32,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- ROTAS DE LOGIN ---
+# --- LOGIN ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -100,7 +100,7 @@ def cadastrar_produto():
         return jsonify({"success": False, "erro": r.text}), 400
     except Exception as e: return jsonify({"success": False, "erro": str(e)}), 500
 
-# --- GERADOR DE PDF (CORRIGIDO PARA COREL/CMYK) ---
+# --- GERADOR DE PDF (FORÇANDO CMYK) ---
 @app.route('/gerar-gabarito', methods=['POST'])
 @login_required
 def gerar_gabarito():
@@ -108,7 +108,7 @@ def gerar_gabarito():
         largura = float(request.form.get('largura'))
         altura = float(request.form.get('altura'))
         nome = request.form.get('nome', 'Gabarito')
-        modo_cor = request.form.get('cor', 'cmyk')
+        modo_cor = request.form.get('cor', 'cmyk') # Vem do front 'cmyk' ou 'rgb'
         salvar_directus = request.form.get('salvar_directus') == 'true'
         arquivo_upload = request.files.get('imagem')
 
@@ -120,6 +120,7 @@ def gerar_gabarito():
             tem_arte = True
             imagem_bytes = arquivo_upload.read() 
             
+            # Backup no Directus
             if salvar_directus:
                 try:
                     stream_dir = io.BytesIO(imagem_bytes)
@@ -131,39 +132,41 @@ def gerar_gabarito():
                 stream_pillow = io.BytesIO(imagem_bytes)
                 img = Image.open(stream_pillow)
 
-                # === CORREÇÃO DA TELA PRETA NO COREL ===
-                # Se a imagem tiver transparência (Canal Alpha), nós achatamos ela contra um fundo branco.
+                # 1. TRATAMENTO DE TRANSPARÊNCIA (Obrigatório para não ficar preto)
                 if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
-                    # Garante conversão para RGBA primeiro para ler a máscara
+                    # Converte para RGBA para manipular o canal Alpha
                     img = img.convert('RGBA')
-                    # Cria um fundo branco do mesmo tamanho
+                    # Cria fundo branco
                     fundo_branco = Image.new('RGB', img.size, (255, 255, 255))
-                    # Cola a imagem original sobre o fundo branco usando o canal alpha como máscara
+                    # Cola a imagem sobre o branco (remove transparência)
                     fundo_branco.paste(img, mask=img.split()[3])
                     img = fundo_branco
                 else:
-                    # Se não tem transparência, converte para RGB padrão
                     img = img.convert('RGB')
 
-                # Agora converte para CMYK ou mantém RGB
+                # 2. CONVERSÃO FINAL (Aqui forçamos o CMYK se solicitado)
                 if modo_cor == 'cmyk':
+                    # Converte de fato para o espaço de cor CMYK
                     img = img.convert('CMYK')
-                    format_img = 'JPEG' # CMYK funciona melhor salvo como JPEG dentro do PDF
+                    format_img = 'JPEG' # CMYK PRECISA ser salvo como JPEG dentro do PDF
                 else:
                     format_img = 'PNG'
 
+                # Salva a imagem processada na memória
                 img_buffer_final = io.BytesIO()
-                # Salva com qualidade máxima
+                # quality=100 e dpi=300 garantem a qualidade máxima para impressão
                 img.save(img_buffer_final, format=format_img, quality=100, dpi=(300, 300))
                 img_buffer_final.seek(0)
                 
                 imagem_para_pdf = ImageReader(img_buffer_final)
                 c.drawImage(imagem_para_pdf, 0, 0, width=largura*cm, height=altura*cm)
+                
             except Exception as e:
-                c.drawString(1*cm, altura/2*cm, f"Erro img: {str(e)}")
+                c.drawString(1*cm, altura/2*cm, f"Erro processamento img: {str(e)}")
         else:
+             # Se não tem imagem, gera fundo branco CMYK puro
              if modo_cor == 'cmyk':
-                c.setFillColor(PCMYKColor(0,0,0,0))
+                c.setFillColor(PCMYKColor(0,0,0,0)) # Branco CMYK
              else:
                 c.setFillColorRGB(1,1,1)
              c.rect(0, 0, largura * cm, altura * cm, fill=1, stroke=0)
