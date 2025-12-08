@@ -1,19 +1,23 @@
 import os
 import io
 import requests
-import json
-from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for
+from flask import Flask, render_template, request, send_file, jsonify
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import PCMYKColor
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÕES ---
-DIRECTUS_URL = os.environ.get("DIRECTUS_URL", "https://api-gabarito.elobrindes.com.br")
-DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN", "4-kfS025X5lFy2k7XVr8DJrfwFJ1RWEO")
+# --- CONFIGURAÇÕES VIA VARIÁVEIS DE AMBIENTE ---
+# Nenhuma chave fica aqui. Tudo vem do Dokploy.
+DIRECTUS_URL = os.environ.get("DIRECTUS_URL")
+DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN")
 
-# Headers padrão para comunicação com Directus
+# Verifica se as variáveis foram carregadas (Debug no log do servidor)
+if not DIRECTUS_URL or not DIRECTUS_TOKEN:
+    print("⚠️  ALERTA: Variáveis de Ambiente (URL ou TOKEN) não foram encontradas!")
+
+# Headers padrão
 HEADERS = {
     "Authorization": f"Bearer {DIRECTUS_TOKEN}",
     "Content-Type": "application/json"
@@ -23,8 +27,7 @@ HEADERS = {
 @app.route('/')
 def index():
     try:
-        # Tenta buscar os produtos. 
-        # IMPORTANTE: O filtro status=published garante que só pegamos os ativos.
+        # Busca produtos (Status = Published)
         r = requests.get(f"{DIRECTUS_URL}/items/produtos?filter[status][_eq]=published&limit=-1", headers=HEADERS)
         
         if r.status_code == 200:
@@ -38,22 +41,20 @@ def index():
 
     return render_template('index.html', produtos=produtos)
 
-# --- ROTA 2: CADASTRAR PRODUTO NOVO (NOVA FUNCIONALIDADE) ---
+# --- ROTA 2: CADASTRAR PRODUTO ---
 @app.route('/cadastrar-produto', methods=['POST'])
 def cadastrar_produto():
     data = request.json
     try:
-        # Monta o payload para o Directus
         novo_produto = {
-            "status": "published", # Já cria como publicado para aparecer na lista
+            "status": "published",
             "nome": data.get('nome'),
-            "codigo": data.get('codigo'), # SKU
+            "codigo": data.get('codigo'),
             "largura": float(data.get('largura')),
             "altura": float(data.get('altura')),
-            "tipo_gabarito": "retangular" # Padrão
+            "tipo_gabarito": "retangular"
         }
 
-        # Envia para o Directus
         r = requests.post(f"{DIRECTUS_URL}/items/produtos", headers=HEADERS, json=novo_produto)
 
         if r.status_code in [200, 201]:
