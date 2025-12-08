@@ -3,46 +3,39 @@ import io
 import requests
 from flask import Flask, render_template, request, send_file, jsonify
 from reportlab.pdfgen import canvas
-from reportlab.lib.units import mm
+# MUDANÇA AQUI: Importando cm ao invés de mm
+from reportlab.lib.units import cm
 from reportlab.lib.colors import PCMYKColor
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÕES VIA VARIÁVEIS DE AMBIENTE (DOKPLOY) ---
+# --- CONFIGURAÇÕES (Lê do Dokploy) ---
 DIRECTUS_URL = os.environ.get("DIRECTUS_URL")
 DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN")
 
-# Verifica se as variáveis existem (apenas alerta no log)
 if not DIRECTUS_URL or not DIRECTUS_TOKEN:
-    print("⚠️  ALERTA: Variáveis de Ambiente não configuradas corretamente no Dokploy!")
+    print("⚠️  ALERTA: Variáveis de Ambiente não configuradas!")
 
-# Headers padrão
 HEADERS = {
     "Authorization": f"Bearer {DIRECTUS_TOKEN}",
     "Content-Type": "application/json"
 }
 
-# --- ROTA 1: FRONTEND ---
 @app.route('/')
 def index():
     try:
         r = requests.get(f"{DIRECTUS_URL}/items/produtos?filter[status][_eq]=published&limit=-1", headers=HEADERS)
-        if r.status_code == 200:
-            produtos = r.json().get('data', [])
-        else:
-            print(f"Erro Directus: {r.text}")
-            produtos = []
+        produtos = r.json().get('data', []) if r.status_code == 200 else []
     except Exception as e:
-        print(f"Erro conexão: {e}")
+        print(f"Erro: {e}")
         produtos = []
-
     return render_template('index.html', produtos=produtos)
 
-# --- ROTA 2: CADASTRAR PRODUTO ---
 @app.route('/cadastrar-produto', methods=['POST'])
 def cadastrar_produto():
     data = request.json
     try:
+        # Salva o número puro no banco (agora representando cm)
         novo_produto = {
             "status": "published",
             "nome": data.get('nome'),
@@ -62,11 +55,11 @@ def cadastrar_produto():
     except Exception as e:
         return jsonify({"success": False, "erro": str(e)}), 500
 
-# --- ROTA 3: GERADOR DE PDF (ATUALIZADA) ---
 @app.route('/gerar-gabarito', methods=['POST'])
 def gerar_gabarito():
     try:
         data = request.json
+        # O sistema entende que esses valores estão em CM
         largura = float(data.get('largura'))
         altura = float(data.get('altura'))
         nome = data.get('nome', 'Gabarito')
@@ -74,26 +67,20 @@ def gerar_gabarito():
 
         buffer = io.BytesIO()
         
-        # Cria a página com o tamanho exato do produto
-        c = canvas.Canvas(buffer, pagesize=(largura * mm, altura * mm))
+        # MUDANÇA AQUI: Multiplica por 'cm' para definir o tamanho correto
+        c = canvas.Canvas(buffer, pagesize=(largura * cm, altura * cm))
         
-        # --- ALTERAÇÃO: FUNDO BRANCO E SEM TEXTO ---
-        
-        # Define a cor BRANCA dependendo do modo
+        # Define a cor BRANCA (Fundo Limpo)
         if modo_cor == 'cmyk':
-            # Branco em CMYK (0,0,0,0)
-            c.setFillColor(PCMYKColor(0, 0, 0, 0))
+            c.setFillColor(PCMYKColor(0, 0, 0, 0)) # Transparente/Branco
             c.setStrokeColor(PCMYKColor(0, 0, 0, 0))
         else:
-            # Branco em RGB (1,1,1)
-            c.setFillColorRGB(1, 1, 1)
+            c.setFillColorRGB(1, 1, 1) # Branco RGB
             c.setStrokeColorRGB(1, 1, 1)
 
-        # Desenha o retângulo branco cobrindo tudo (para garantir que não seja transparente)
-        c.rect(0, 0, largura * mm, altura * mm, fill=1, stroke=0)
+        # Desenha o retângulo branco usando a unidade cm
+        c.rect(0, 0, largura * cm, altura * cm, fill=1, stroke=0)
 
-        # OBS: Removida a parte que desenhava o texto (c.drawString)
-        
         c.showPage()
         c.save()
         
