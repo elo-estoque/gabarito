@@ -21,7 +21,7 @@
             <select v-model="produtoSelecionado" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 <option disabled value="">Selecione um produto...</option>
                 <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">
-                    {{ prod.nome }} ({{ prod.codigo }})
+                    [[ prod.nome ]] ([[ prod.codigo ]])
                 </option>
             </select>
         </div>
@@ -29,11 +29,11 @@
         <div v-if="produtoSelecionado" class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-6 text-indigo-900 text-sm">
             <div class="flex justify-between mb-1">
                 <span>Largura:</span>
-                <span class="font-bold">{{ produtoSelecionado.largura }} mm</span>
+                <span class="font-bold">[[ produtoSelecionado.largura ]] mm</span>
             </div>
             <div class="flex justify-between">
                 <span>Altura:</span>
-                <span class="font-bold">{{ produtoSelecionado.altura }} mm</span>
+                <span class="font-bold">[[ produtoSelecionado.altura ]] mm</span>
             </div>
         </div>
 
@@ -67,12 +67,16 @@
         const { createApp } = Vue
 
         createApp({
+            // AQUI ESTÁ A MÁGICA: Mudamos o delimitador do Vue
+            compilerOptions: {
+                delimiters: ['[[', ']]'] 
+            },
             data() {
                 return {
                     loading: false,
                     modoCor: 'cmyk',
                     produtoSelecionado: '',
-                    // Aqui pegamos os dados que o Python (Flask) injetou na página via Jinja2
+                    // Este {{ }} o Python (Jinja) PRECISA processar, então deixamos igual
                     listaProdutos: {{ produtos | tojson }} 
                 }
             },
@@ -93,7 +97,6 @@
 
                         if (!response.ok) throw new Error('Erro ao gerar');
 
-                        // Truque para baixar o arquivo recebido (Blob)
                         const blob = await response.blob();
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
