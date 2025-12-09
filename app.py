@@ -13,18 +13,16 @@ from functools import wraps
 app = Flask(__name__)
 
 # --- CONFIGURAÇÕES ---
-# IMPORTANTE: Defina uma chave secreta para a segurança da sessão (pode ser qualquer texto aleatório)
 app.secret_key = os.environ.get("SECRET_KEY", "chave_super_secreta_elo_brindes_2024")
 
 DIRECTUS_URL = os.environ.get("DIRECTUS_URL")
-DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN") # Token do Robô (Admin/System)
+DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN")
 
 HEADERS_SYSTEM = {
     "Authorization": f"Bearer {DIRECTUS_TOKEN}",
     "Content-Type": "application/json"
 }
 
-# --- DECORATOR: Protege as rotas (Só entra se estiver logado) ---
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -33,44 +31,28 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- ROTA: LOGIN (TELA E LÓGICA) ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-        
-        # 1. Tenta autenticar no Directus
         try:
-            auth_resp = requests.post(f"{DIRECTUS_URL}/auth/login", json={
-                "email": email, 
-                "password": password
-            })
-            
+            auth_resp = requests.post(f"{DIRECTUS_URL}/auth/login", json={"email": email, "password": password})
             if auth_resp.status_code == 200:
                 data = auth_resp.json()['data']
                 access_token = data['access_token']
-                
-                # 2. Busca dados do usuário (Nome) para salvar na sessão
-                user_resp = requests.get(f"{DIRECTUS_URL}/users/me", headers={
-                    "Authorization": f"Bearer {access_token}"
-                })
-                
+                user_resp = requests.get(f"{DIRECTUS_URL}/users/me", headers={"Authorization": f"Bearer {access_token}"})
                 if user_resp.status_code == 200:
                     user_data = user_resp.json()['data']
-                    # Salva na sessão do Flask
                     session['user'] = {
                         'id': user_data['id'],
                         'name': f"{user_data.get('first_name','')} {user_data.get('last_name','')}".strip(),
                         'email': user_data['email']
                     }
                     return redirect(url_for('index'))
-            
             return render_template('login.html', erro="E-mail ou senha incorretos.")
-            
         except Exception as e:
             return render_template('login.html', erro=f"Erro de conexão: {str(e)}")
-
     return render_template('login.html')
 
 @app.route('/logout')
@@ -78,13 +60,18 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- ROTA 1: FRONTEND (PROTEGIDA) ---
+# --- ROTA PRINCIPAL ATUALIZADA ---
 @app.route('/')
 @login_required
 def index():
     try:
         if DIRECTUS_URL:
-            r = requests.get(f"{DIRECTUS_URL}/items/produtos?filter[status][_eq]=published&limit=-1", headers=HEADERS_SYSTEM, timeout=5)
+            # ATENÇÃO: Adicionei &fields=*.* para trazer o objeto do arquivo_faca completo
+            r = requests.get(
+                f"{DIRECTUS_URL}/items/produtos?filter[status][_eq]=published&limit=-1&fields=*.*", 
+                headers=HEADERS_SYSTEM, 
+                timeout=5
+            )
             produtos = r.json().get('data', []) if r.status_code == 200 else []
         else:
             produtos = []
@@ -92,21 +79,18 @@ def index():
         print(f"Erro ao buscar produtos: {e}")
         produtos = []
     
-    # Passa o nome do usuário logado para o template
-    return render_template('index.html', produtos=produtos, usuario=session['user'])
+    # Passamos também a URL base para o template montar os links de download facilmente
+    return render_template('index.html', produtos=produtos, usuario=session['user'], directus_url=DIRECTUS_URL)
 
-# --- NOVA ROTA: BUSCAR HISTÓRICO ---
 @app.route('/api/historico')
 @login_required
 def get_historico():
     try:
-        # Busca os últimos 50 registros do histórico, ordenados por data
         r = requests.get(f"{DIRECTUS_URL}/items/historico?sort=-date_created&limit=50", headers=HEADERS_SYSTEM)
         return jsonify(r.json())
     except Exception as e:
         return jsonify({"data": []})
 
-# --- ROTA 2: CADASTRAR PRODUTO ---
 @app.route('/cadastrar-produto', methods=['POST'])
 @login_required
 def cadastrar_produto():
@@ -121,16 +105,13 @@ def cadastrar_produto():
             "tipo_gabarito": "retangular"
         }
         r = requests.post(f"{DIRECTUS_URL}/items/produtos", headers=HEADERS_SYSTEM, json=novo_produto)
-        
         if r.status_code in [200, 201]:
-            # LOG: Salva no histórico
             gravar_historico("Cadastrou Produto", f"{data.get('nome')} ({data.get('codigo')})")
             return jsonify({"success": True})
         return jsonify({"success": False, "erro": r.text}), 400
     except Exception as e:
         return jsonify({"success": False, "erro": str(e)}), 500
 
-# --- ROTA 3: GERAR PDF ---
 @app.route('/gerar-gabarito', methods=['POST'])
 @login_required
 def gerar_gabarito():
@@ -145,7 +126,6 @@ def gerar_gabarito():
         buffer_pdf = io.BytesIO()
         c = canvas.Canvas(buffer_pdf, pagesize=(largura * cm, altura * cm))
 
-        # Lógica de Imagem
         tem_arte = False
         if arquivo_upload and arquivo_upload.filename != '':
             tem_arte = True
@@ -186,7 +166,6 @@ def gerar_gabarito():
         c.showPage()
         c.save()
         
-        # --- LOG: GRAVAR HISTÓRICO ---
         tipo_acao = "Gerou Prova" if tem_arte else "Baixou Gabarito"
         detalhes = f"{nome} - {largura}x{altura}cm ({modo_cor.upper()})"
         gravar_historico(tipo_acao, detalhes)
@@ -200,7 +179,6 @@ def gerar_gabarito():
     except Exception as e:
         return jsonify({"erro": f"Erro interno: {str(e)}"}), 500
 
-# --- FUNÇÃO AUXILIAR: GRAVAR NO DIRECTUS ---
 def gravar_historico(acao, produto):
     try:
         usuario_nome = session.get('user', {}).get('name', 'Desconhecido')
@@ -208,7 +186,6 @@ def gravar_historico(acao, produto):
             "acao": acao,
             "produto": produto,
             "usuario": usuario_nome
-            # data_created é automático do Directus
         }
         requests.post(f"{DIRECTUS_URL}/items/historico", headers=HEADERS_SYSTEM, json=payload)
     except Exception as e:
