@@ -1,442 +1,688 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elo Prova Digital | Editor</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <title>Meu Elo - Brindes</title>
     
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            dark: '#050505',
-                            card: '#121212',
-                            wine: '#E31937',
-                            hover: '#C2132F',
-                            surface: '#1E1E1E'
-                        }
-                    },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
-                }
-            }
+    <style>
+        /* ================= ESTILOS GERAIS (CSS) ================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: #FFFDF7; /* Fundo creme bem suave */
+            color: #1a1a1a;
+            overflow-x: hidden;
+            /* Importante para o header fixo não 'pular' o conteúdo */
+            padding-top: 0; 
+        }
+
+        a { text-decoration: none; }
+        ul { list-style: none; }
+
+        /* --- Faixa Topo (ANIMADA) --- */
+        .top-bar {
+            background-color: #ff9900;
+            color: white;
+            font-size: 11px;
+            padding: 8px 0; /* Um pouco mais alto */
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            overflow: hidden; 
+            white-space: nowrap; 
+            position: relative;
+            z-index: 1002; /* Acima de tudo */
+        }
+
+        /* O trilho que se move */
+        .ticker-track {
+            display: inline-block;
+            white-space: nowrap;
+            animation: scroll-ticker 30s linear infinite; 
+        }
+
+        .ticker-item {
+            display: inline-block;
+            padding: 0 20px; 
+        }
+
+        @keyframes scroll-ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); } 
+        }
+
+        /* --- Cabeçalho (Header) - INTEGRADO --- */
+        header {
+            background-color: transparent; /* Começa transparente */
+            padding: 15px 0;
+            position: absolute; /* Fica em cima do banner */
+            top: 32px; /* Altura aproximada da top-bar para não cobrir ela inicialmente */
+            width: 100%;
+            z-index: 1000;
+            transition: all 0.4s ease; /* Transição suave de cores e fundo */
+            border-bottom: 1px solid rgba(255,255,255,0.1); /* Linha sutil inicial */
+        }
+
+        /* Classe que será adicionada pelo JavaScript ao rolar */
+        header.scrolled {
+            position: fixed; /* Fixa no topo */
+            top: 0;
+            background-color: #ffffff; /* Fundo Branco */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* Sombra suave */
+            padding: 10px 0; /* Fica um pouco mais compacto */
+            border-bottom: none;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 30px;
+        }
+
+        .logo img {
+            max-height: 45px;
+            width: auto;
+            display: block;
+            transition: filter 0.3s;
+        }
+
+        /* Efeito no Logo: Se o logo original for Branco, invertemos para Preto na rolagem */
+        header.scrolled .logo img {
+            filter: invert(1) brightness(0); /* Torna o logo PRETO */
+        }
+
+        /* Barra de Busca */
+        .search-bar {
+            flex-grow: 1;
+            max-width: 400px;
+            display: flex;
+            background: rgba(255, 255, 255, 0.2); /* Fundo translúcido inicial */
+            border-radius: 20px; /* Mais arredondado */
+            padding: 8px 20px;
+            margin: 0 30px;
+            transition: background 0.3s;
+            border: 1px solid rgba(255,255,255,0.3);
         }
         
-        // Configuração do Worker do PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    </script>
-    <style>
-        body { background-color: #050505; color: #E5E7EB; }
-        .glass-panel { background: #121212; border: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); color: white; transition: all 0.2s; }
-        .glass-input:focus { border-color: #E31937; outline: none; background: rgba(0, 0, 0, 0.5); }
-        .glass-input option { background-color: #121212; color: white; }
-        .canvas-wrapper {
-            transform-origin: center center;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        /* Busca na versão Scrolled (Fundo Branco) */
+        header.scrolled .search-bar {
+            background: #f5f5f5; /* Cinza claro */
+            border: 1px solid #eee;
         }
-        ::-webkit-scrollbar { width: 8px; height: 8px; } 
-        ::-webkit-scrollbar-track { background: #050505; } 
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; } 
-        ::-webkit-scrollbar-thumb:hover { background: #E31937; }
-        input[type=number]::-webkit-inner-spin-button { opacity: 1; filter: invert(1); }
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+        .search-bar input {
+            background: transparent;
+            border: none;
+            color: white; /* Texto branco inicialmente */
+            width: 100%;
+            outline: none;
+            font-size: 13px;
+        }
+        
+        header.scrolled .search-bar input {
+            color: #333; /* Texto escuro na rolagem */
+        }
+
+        .search-bar input::placeholder { color: rgba(255,255,255,0.7); }
+        header.scrolled .search-bar input::placeholder { color: #999; }
+
+        .search-bar button {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        header.scrolled .search-bar button { color: #555; }
+
+        /* Ícones do Header */
+        .header-icons {
+            display: flex;
+            gap: 20px;
+        }
+
+        .header-icons a {
+            color: white; /* Ícones brancos inicialmente */
+            font-size: 20px;
+            transition: color 0.3s;
+        }
+        
+        header.scrolled .header-icons a {
+            color: #333; /* Ícones escuros na rolagem */
+        }
+        
+        .header-icons a:hover { color: #ff9900; }
+
+        /* Menu de Navegação */
+        nav {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 15px;
+            transition: border 0.3s;
+        }
+        
+        header.scrolled nav {
+            border-top: none; /* Remove a linha na versão compacta */
+            margin-top: 5px; 
+            display: none; /* Opcional: Esconder o menu inferior ao rolar para limpar a visão, ou manter. Vou manter, mas ajustado. */
+        }
+        
+        /* Ajuste para manter o menu visível mas integrado na linha se quiser, mas vamos manter simples abaixo */
+        header.scrolled nav { display: block; margin-top: 0; }
+
+        .nav-menu {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding-top: 15px;
+            padding-bottom: 5px;
+        }
+        
+        header.scrolled .nav-menu { padding-top: 5px; }
+
+        .nav-menu a {
+            color: white; /* Links brancos inicialmente */
+            font-weight: 500;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+            position: relative;
+        }
+        
+        header.scrolled .nav-menu a {
+            color: #555; /* Links cinza escuro na rolagem */
+        }
+
+        .nav-menu a:hover { color: #ff9900; }
+        header.scrolled .nav-menu a:hover { color: #ff9900; }
+        
+        /* Efeito de linha embaixo do link ao passar o mouse */
+        .nav-menu a::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 2px;
+            background: #ff9900;
+            transition: width .3s;
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+        }
+        .nav-menu a:hover::after { width: 100%; }
+
+        /* --- Hero Section (Banner) --- */
+        .hero {
+            position: relative;
+            width: 100%;
+            height: 700px; /* AUMENTADO PARA 700PX para compensar o header em cima */
+            background-color: #111;
+            display: flex;
+            align-items: flex-end; /* Conteúdo embaixo */
+            justify-content: center;
+            overflow: hidden;
+            padding-bottom: 80px; 
+        }
+
+        /* Imagem do Banner */
+        .hero img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 1; /* Opacidade total para cores vibrantes */
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        /* Overlay gradiente para garantir leitura do menu superior */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: white;
+            padding: 20px;
+        }
+
+        /* Botão Hero */
+        @keyframes subtleBob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); } 
+        }
+
+        .btn-hero {
+            background-color: #ff9900;
+            color: white;
+            padding: 16px 50px;
+            border-radius: 5px; /* Quadrado arredondado style Pacco */
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            display: inline-block;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4); 
+            animation: subtleBob 3s ease-in-out infinite;
+            border: 2px solid #ff9900;
+        }
+
+        .btn-hero:hover { 
+            background-color: transparent;
+            color: #ff9900;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5); 
+        }
+
+        /* --- Faixa Promocional Laranja --- */
+        .promo-strip {
+            background-color: #ff9900;
+            text-align: center;
+            color: white;
+            padding: 20px;
+            /* Sombra para dar profundidade sobre o conteúdo abaixo */
+            box-shadow: 0 4px 10px rgba(255, 153, 0, 0.2);
+            position: relative;
+            z-index: 10;
+        }
+        .promo-strip strong { font-size: 18px; letter-spacing: 1px; }
+        .promo-strip p { font-size: 14px; line-height: 1.5; margin-top: 5px; }
+
+        /* --- Categorias (Bolinhas) --- */
+        .categories {
+            display: flex;
+            justify-content: center;
+            gap: 35px;
+            padding: 60px 20px;
+            flex-wrap: wrap;
+        }
+
+        .cat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            width: 100px; /* Um pouco maior */
+            transition: transform 0.3s;
+        }
+        
+        .cat-item:hover { transform: translateY(-5px); }
+
+        .circle {
+            width: 80px;
+            height: 80px;
+            background-color: #fff;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Sombra leve */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #f0f0f0;
+            transition: border-color 0.3s;
+        }
+        
+        .cat-item:hover .circle { border-color: #ff9900; }
+
+        .circle img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .cat-item span {
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* --- Seções de Produtos --- */
+        .section-title {
+            text-align: center;
+            color: #333; /* Cor mais sóbria */
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .product-section {
+            max-width: 1200px;
+            margin: 0 auto 80px auto;
+            position: relative;
+            padding: 0 50px;
+        }
+
+        /* Container do Slider */
+        .slider-wrapper {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            gap: 30px;
+            padding-bottom: 30px;
+            scrollbar-width: none; 
+            -ms-overflow-style: none; 
+        }
+        .slider-wrapper::-webkit-scrollbar { display: none; }
+
+        /* Cartão de Produto Padrão */
+        .product-card {
+            min-width: 240px; /* Cartões mais largos */
+            max-width: 240px;
+            flex-shrink: 0;
+            text-align: left;
+            transition: opacity 0.3s;
+        }
+        
+        .product-card:hover { opacity: 0.9; }
+
+        .product-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 0; /* Reto, mais elegante */
+            margin-bottom: 15px;
+        }
+
+        .p-title {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 8px;
+            line-height: 1.4;
+            height: 40px;
+            overflow: hidden;
+            font-weight: 500;
+        }
+
+        .p-old-price {
+            font-size: 12px;
+            text-decoration: line-through;
+            color: #bbb;
+        }
+
+        .p-price {
+            font-size: 20px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .p-discount {
+            font-size: 10px;
+            background: #ffe0b2;
+            color: #e65100;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+
+        /* Setas de Navegação */
+        .nav-btn {
+            position: absolute;
+            top: 40%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.8);
+            border: 1px solid #eee;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 5;
+            color: #333;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover { background: #ff9900; color: white; border-color: #ff9900; }
+        .prev-btn { left: 0; }
+        .next-btn { right: 0; }
+
+        /* --- Ofertas Relâmpago (Fundo Amarelo) --- */
+        .highlight-section {
+            background-color: #FFF8E1; /* Amarelo bem claro elegante */
+            padding: 60px 0;
+            margin-bottom: 50px;
+        }
+        
+        .highlight-section .section-title {
+            color: #f57f17;
+        }
+
+        /* Cartão Branco com Borda */
+        .card-white {
+            background: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 15px;
+            min-width: 250px;
+            max-width: 250px;
+            border-radius: 8px;
+        }
+
+        /* Responsividade Mobile */
+        @media (max-width: 768px) {
+            header { top: 32px; padding: 10px 0; }
+            .header-container { flex-direction: column; gap: 10px; padding: 0 15px; }
+            .search-bar { width: 100%; margin: 5px 0; }
+            .nav-menu { display: none; /* Esconde menu no mobile por enquanto */ }
+            .hero { height: 500px; padding-bottom: 40px; }
+            .product-section { padding: 0 20px; }
+            .nav-btn { display: none; }
+            .logo img { max-height: 35px; }
+            
+            /* Ajuste para o texto não ficar duplicado no mobile */
+            .top-bar { font-size: 10px; }
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden bg-brand-dark font-sans text-gray-300">
+<body>
 
-    <nav class="bg-brand-card border-b border-white/5 h-16 flex-none z-30">
-        <div class="max-w-[1600px] mx-auto px-6 h-full flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-brand-wine rounded flex items-center justify-center text-white">
-                    <i class="fa-solid fa-print"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-white leading-tight tracking-tight">ELO PROVA DIGITAL</h1>
-                    <p class="text-[10px] text-gray-500 uppercase tracking-widest">Sistema de Gabaritos</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="text-right hidden sm:block">
-                    <p class="text-xs font-bold text-white">{{ usuario.name }}</p>
-                    <p class="text-[10px] text-gray-500">{{ usuario.email }}</p>
-                </div>
-                <div class="h-8 w-[1px] bg-white/10 mx-2"></div>
-                <a href="/logout" class="text-gray-400 hover:text-brand-wine transition text-sm font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-right-from-bracket"></i> SAIR
-                </a>
-            </div>
-        </div>
-    </nav>
-
-    <div id="app" class="flex-1 max-w-[1600px] mx-auto w-full p-4 md:p-6 overflow-hidden flex flex-col">
-        
-        <div class="glass-panel rounded-2xl shadow-2xl flex flex-col h-full overflow-hidden relative">
+    <div class="top-bar">
+        <div class="ticker-track">
+            <span class="ticker-item">5% OFF NA PRIMEIRA COMPRA &nbsp;|&nbsp;</span>
+            <span class="ticker-item">FRETE GRÁTIS ACIMA DE R$399 &nbsp;|&nbsp;</span>
+            <span class="ticker-item">5% OFF NA PRIMEIRA COMPRA &nbsp;|&nbsp;</span>
+            <span class="ticker-item">PARCELE EM ATÉ 10X SEM JUROS &nbsp;|&nbsp;</span>
             
-            <div class="flex border-b border-white/5 bg-black/20">
-                <button @click="abaPrincipal = 'editor'" :class="{'border-b-2 border-brand-wine text-white bg-white/5': abaPrincipal === 'editor', 'text-gray-500 hover:text-gray-300 hover:bg-white/5': abaPrincipal !== 'editor'}" class="px-6 py-4 font-bold text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-pen-ruler"></i> Editor
-                </button>
-                <button @click="abaPrincipal = 'historico'; carregarHistorico()" :class="{'border-b-2 border-brand-wine text-white bg-white/5': abaPrincipal === 'historico', 'text-gray-500 hover:text-gray-300 hover:bg-white/5': abaPrincipal !== 'historico'}" class="px-6 py-4 font-bold text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Histórico
-                </button>
-            </div>
-
-            <div v-show="abaPrincipal === 'editor'" class="flex flex-col lg:flex-row h-full overflow-hidden">
-                
-                <div class="w-full lg:w-[320px] bg-brand-card border-r border-white/5 flex flex-col h-full overflow-y-auto z-20 shadow-xl">
-                    <div class="p-5 space-y-6">
-                        
-                        <div>
-                            <p class="text-[10px] uppercase font-bold text-gray-500 mb-2 tracking-wider">Modo de Operação</p>
-                            <div class="flex bg-black/40 rounded-lg p-1 border border-white/5">
-                                <button @click="modo = 'catalogo'; limparEditor()" :class="{'bg-brand-surface text-brand-wine shadow border border-white/10': modo==='catalogo', 'text-gray-500 hover:text-gray-300': modo!=='catalogo'}" class="flex-1 py-2 rounded-md text-xs font-bold transition">Catálogo</button>
-                                <button @click="modo = 'custom'; limparEditor()" :class="{'bg-brand-surface text-brand-wine shadow border border-white/10': modo==='custom', 'text-gray-500 hover:text-gray-300': modo!=='custom'}" class="flex-1 py-2 rounded-md text-xs font-bold transition">Manual</button>
-                            </div>
-                        </div>
-
-                        <div v-if="modo === 'catalogo'">
-                            <label class="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Selecione o Produto</label>
-                            <select v-model="produtoSelecionado" @change="atualizarMedidas" class="w-full glass-input p-2.5 rounded-lg text-sm outline-none mb-3">
-                                <option value="">Buscar produto...</option>
-                                <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">[[ prod.nome ]] ([[ prod.codigo ]])</option>
-                            </select>
-
-                            <div v-if="produtoSelecionado" class="bg-brand-surface border border-white/10 rounded-lg p-3 flex justify-between items-center animate-fade-in">
-                                <div class="text-center w-1/2 border-r border-white/10">
-                                    <span class="block text-[10px] text-gray-500 uppercase font-bold">Largura</span>
-                                    <span class="block text-lg font-bold text-white">[[ medidas.largura ]] cm</span>
-                                </div>
-                                <div class="text-center w-1/2">
-                                    <span class="block text-[10px] text-gray-500 uppercase font-bold">Altura</span>
-                                    <span class="block text-lg font-bold text-white">[[ medidas.altura ]] cm</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="modo === 'custom'" class="bg-brand-surface p-3 rounded-lg border border-white/10">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-500">Largura (cm)</label>
-                                    <input type="number" step="0.1" v-model="medidas.largura" @change="redimensionarCanvas" class="w-full glass-input p-2 rounded text-sm">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-500">Altura (cm)</label>
-                                    <input type="number" step="0.1" v-model="medidas.altura" @change="redimensionarCanvas" class="w-full glass-input p-2 rounded text-sm">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="h-px bg-white/5"></div>
-
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Arte do Cliente</label>
-                            <label class="flex items-center justify-center w-full p-4 border border-dashed border-white/20 bg-white/5 rounded-lg text-gray-400 font-bold cursor-pointer hover:bg-white/10 hover:text-white hover:border-brand-wine transition group">
-                                <i class="fa-solid fa-cloud-arrow-up mr-2 group-hover:text-brand-wine transition"></i>
-                                <span class="text-xs">Carregar (IMG ou PDF)</span>
-                                <input type="file" @change="adicionarImagemCanvas" accept="image/*, application/pdf" class="hidden">
-                            </label>
-                        </div>
-
-                        <div v-if="arteSelecionada" class="bg-brand-surface border-l-4 border-brand-wine p-4 rounded-r-lg shadow-lg animate-fade-in">
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="text-xs font-bold text-white uppercase"><i class="fa-solid fa-sliders mr-1 text-brand-wine"></i> Ajustar Arte</span>
-                                <button @click="excluirArte" class="text-gray-500 hover:text-red-500 transition text-xs" title="Excluir"><i class="fa-solid fa-trash"></i></button>
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-2 mb-3">
-                                <div class="relative">
-                                    <span class="absolute left-2 top-1.5 text-[10px] text-gray-500 font-bold">L</span>
-                                    <input type="number" step="0.1" v-model="medidasArte.largura" @input="atualizarArtePeloInput('w')" class="w-full pl-5 p-1.5 glass-input rounded text-xs font-bold text-center">
-                                </div>
-                                <div class="relative">
-                                    <span class="absolute left-2 top-1.5 text-[10px] text-gray-500 font-bold">A</span>
-                                    <input type="number" step="0.1" v-model="medidasArte.altura" @input="atualizarArtePeloInput('h')" class="w-full pl-5 p-1.5 glass-input rounded text-xs font-bold text-center">
-                                </div>
-                            </div>
-
-                            <div class="flex items-center justify-between">
-                                <label class="flex items-center cursor-pointer select-none group" title="Travar Proporção">
-                                    <input type="checkbox" v-model="bloquearProporcao" class="mr-2 h-3 w-3 accent-brand-wine rounded bg-gray-800 border-gray-600">
-                                    <span class="text-[10px] font-bold text-gray-500 group-hover:text-gray-300 transition">Travar Prop.</span>
-                                </label>
-                                <div class="flex gap-1">
-                                    <button @click="centralizarArte" class="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded transition" title="Centralizar"><i class="fa-solid fa-crosshairs text-xs"></i></button>
-                                    <button @click="preencherArte" class="bg-brand-wine hover:bg-brand-hover text-white p-1.5 rounded transition" title="Preencher"><i class="fa-solid fa-expand text-xs"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-auto p-5 border-t border-white/5 bg-black/20">
-                        <div class="flex items-center mb-4 justify-center">
-                            <input type="checkbox" id="saveDir" v-model="salvarNoDirectus" class="mr-2 h-4 w-4 accent-brand-wine bg-gray-800 border-gray-600 rounded">
-                            <label for="saveDir" class="text-xs text-gray-400 font-bold cursor-pointer hover:text-white transition">Salvar cópia no sistema</label>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button @click="baixarPDF('rgb')" :disabled="!validar" class="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 text-gray-300 hover:text-white flex flex-col items-center justify-center transition group disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="fa-solid fa-desktop mb-1 group-hover:text-brand-wine transition"></i>
-                                <span class="text-[10px] font-bold">RGB (Tela)</span>
-                            </button>
-                            <button @click="baixarPDF('cmyk')" :disabled="!validar" class="p-3 rounded-lg bg-brand-wine hover:bg-brand-hover text-white flex flex-col items-center justify-center transition shadow-lg shadow-brand-wine/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="fa-solid fa-print mb-1"></i>
-                                <span class="text-[10px] font-bold">CMYK (Print)</span>
-                            </button>
-                        </div>
-                        <p v-if="loading" class="text-center text-[10px] text-brand-wine font-bold mt-3 animate-pulse">PROCESSANDO...</p>
-                    </div>
-                </div>
-
-                <div class="flex-1 bg-[#090909] relative flex flex-col items-center overflow-hidden">
-                    <div class="w-full h-12 flex justify-between items-center px-6 border-b border-white/5 bg-brand-card z-10">
-                        <div class="flex items-center text-xs font-bold text-gray-500 uppercase">
-                            <i class="fa-solid fa-ruler-combined mr-2 text-brand-wine"></i>
-                            <span v-if="medidas.largura">Área: [[ medidas.largura ]]cm x [[ medidas.altura ]]cm</span>
-                            <span v-else>Aguardando seleção...</span>
-                        </div>
-                        <div class="text-[10px] font-mono text-gray-400 bg-white/5 px-2 py-1 rounded border border-white/5">
-                            Zoom: [[ Math.round(zoomScale * 100) ]]%
-                        </div>
-                    </div>
-                    
-                    <div ref="canvasContainer" class="flex-grow w-full flex items-center justify-center overflow-hidden relative p-10" @click.self="deselecionarArte">
-                        <div v-if="!medidas.largura" class="text-center text-gray-600 select-none">
-                            <i class="fa-solid fa-arrow-left text-3xl mb-3 opacity-30"></i>
-                            <p class="font-bold text-sm">Selecione um produto no menu</p>
-                        </div>
-                        <div class="canvas-wrapper bg-white" :style="{ transform: `scale(${zoomScale})` }">
-                            <canvas id="canvasEditor"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div v-show="abaPrincipal === 'historico'" class="flex-1 overflow-y-auto bg-brand-dark p-8">
-                <div class="max-w-5xl mx-auto">
-                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                        <i class="fa-solid fa-list-check text-brand-wine"></i> Registro de Atividades
-                    </h2>
-                    <div class="glass-panel rounded-xl overflow-hidden">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="border-b border-white/10 bg-white/5 text-xs uppercase text-gray-400">
-                                    <th class="px-6 py-4 font-bold">Data / Hora</th>
-                                    <th class="px-6 py-4 font-bold">Usuário</th>
-                                    <th class="px-6 py-4 font-bold">Ação</th>
-                                    <th class="px-6 py-4 font-bold">Produto / Detalhe</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-white/5 text-sm text-gray-300">
-                                <tr v-for="log in historicoLista" :key="log.id" class="hover:bg-white/5 transition">
-                                    <td class="px-6 py-4 font-mono text-xs text-gray-500">[[ formatarData(log.date_created) ]]</td>
-                                    <td class="px-6 py-4 font-bold text-white">[[ log.usuario ]]</td>
-                                    <td class="px-6 py-4">
-                                        <span :class="{'bg-green-500/10 text-green-500 border-green-500/20': log.acao.includes('Gerou'), 'bg-blue-500/10 text-blue-500 border-blue-500/20': log.acao.includes('Baixou')}" class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wide border">
-                                            [[ log.acao ]]
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs text-gray-400">[[ log.produto ]]</td>
-                                </tr>
-                                <tr v-if="historicoLista.length === 0">
-                                    <td colspan="4" class="px-6 py-12 text-center text-gray-600 italic">Nenhum registro encontrado no histórico.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
+            <span class="ticker-item">5% OFF NA PRIMEIRA COMPRA &nbsp;|&nbsp;</span>
+            <span class="ticker-item">FRETE GRÁTIS ACIMA DE R$399 &nbsp;|&nbsp;</span>
+            <span class="ticker-item">5% OFF NA PRIMEIRA COMPRA &nbsp;|&nbsp;</span>
+            <span class="ticker-item">PARCELE EM ATÉ 10X SEM JUROS &nbsp;|&nbsp;</span>
+             <span class="ticker-item">5% OFF NA PRIMEIRA COMPRA &nbsp;|&nbsp;</span>
+            <span class="ticker-item">FRETE GRÁTIS ACIMA DE R$399 &nbsp;|&nbsp;</span>
         </div>
     </div>
 
+    <header id="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <img src="logo.png" alt="Meu Elo Logo">
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" placeholder="Buscar produtos...">
+                <button><i class="fa-solid fa-magnifying-glass"></i></button>
+            </div>
+
+            <div class="header-icons">
+                <a href="#"><i class="fa-solid fa-bag-shopping"></i></a>
+                <a href="#"><i class="fa-solid fa-user"></i></a>
+            </div>
+        </div>
+
+        <nav>
+            <ul class="nav-menu">
+                <li><a href="#">Lançamentos</a></li>
+                <li><a href="#">Outlet</a></li>
+                <li><a href="#">Garrafas</a></li>
+                <li><a href="#">Copos</a></li>
+                <li><a href="#">Kits</a></li>
+                <li><a href="#">Personalizados</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <img src="banner1.png" alt="Banner Principal">
+        
+        <div class="hero-content">
+            <a href="#" class="btn-hero">EU QUERO</a>
+        </div>
+    </section>
+
+    <section class="promo-strip">
+        <p><strong>CUPOM EXTRA: MEUELO5</strong><br>Para garantir seu desconto especial agora!</p>
+    </section>
+
+    <section class="categories">
+        <div class="cat-item">
+            <div class="circle"><img src="cat1.png" alt="Garrafa"></div>
+            <span>Garrafas</span>
+        </div>
+        <div class="cat-item">
+            <div class="circle"><img src="cat2.png" alt="Copos"></div>
+            <span>Copos</span>
+        </div>
+        <div class="cat-item">
+            <div class="circle"><img src="cat3.png" alt="Kits"></div>
+            <span>Kits</span>
+        </div>
+        <div class="cat-item">
+            <div class="circle"><img src="cat4.png" alt="Térmicos"></div>
+            <span>Térmicos</span>
+        </div>
+        <div class="cat-item">
+            <div class="circle"><img src="cat5.png" alt="Infantil"></div>
+            <span>Infantil</span>
+        </div>
+    </section>
+
+    <div class="section-title">Destaques da Semana</div>
+    
+    <section class="product-section">
+        <button class="nav-btn prev-btn" onclick="scrollSlider('slider1', -260)"><i class="fa-solid fa-chevron-left"></i></button>
+        
+        <div class="slider-wrapper" id="slider1">
+            <div class="product-card">
+                <img src="https://via.placeholder.com/250x350?text=Produto+1" alt="Produto">
+                <div class="p-title">Garrafa Térmica Premium 500ml</div>
+                <div class="p-old-price">R$ 159,90</div>
+                <div class="p-price">R$ 139,90</div>
+            </div>
+            <div class="product-card">
+                <img src="https://via.placeholder.com/250x350?text=Produto+2" alt="Produto">
+                <div class="p-title">Copo Térmico c/ Tampa</div>
+                <div class="p-old-price">R$ 129,90</div>
+                <div class="p-price">R$ 99,90 <span class="p-discount">OFF</span></div>
+            </div>
+            <div class="product-card">
+                <img src="https://via.placeholder.com/250x350?text=Produto+3" alt="Produto">
+                <div class="p-title">Kit Escritório Completo</div>
+                <div class="p-old-price">R$ 299,90</div>
+                <div class="p-price">R$ 249,90</div>
+            </div>
+            <div class="product-card">
+                <img src="https://via.placeholder.com/250x350?text=Produto+4" alt="Produto">
+                <div class="p-title">Garrafa Infantil Bichinhos</div>
+                <div class="p-old-price">R$ 89,90</div>
+                <div class="p-price">R$ 79,90</div>
+            </div>
+             <div class="product-card">
+                <img src="https://via.placeholder.com/250x350?text=Produto+5" alt="Produto">
+                <div class="p-title">Mug Térmica Coffee</div>
+                <div class="p-old-price">R$ 119,90</div>
+                <div class="p-price">R$ 89,90</div>
+            </div>
+        </div>
+
+        <button class="nav-btn next-btn" onclick="scrollSlider('slider1', 260)"><i class="fa-solid fa-chevron-right"></i></button>
+    </section>
+
+    <section class="highlight-section">
+        <div class="section-title">Ofertas Relâmpago</div>
+        
+        <div class="product-section">
+            <button class="nav-btn prev-btn" onclick="scrollSlider('slider2', -280)"><i class="fa-solid fa-chevron-left"></i></button>
+            
+            <div class="slider-wrapper" id="slider2">
+                <div class="product-card card-white">
+                    <img src="https://via.placeholder.com/250x300?text=Oferta" alt="Oferta">
+                    <div class="p-title">Garrafa Sport 1L</div>
+                    <div class="p-price">R$ 59,90 <span class="p-discount">-30%</span></div>
+                </div>
+                 <div class="product-card card-white">
+                    <img src="https://via.placeholder.com/250x300?text=Oferta" alt="Oferta">
+                    <div class="p-title">Copo Party Térmico</div>
+                    <div class="p-price">R$ 49,90 <span class="p-discount">-20%</span></div>
+                </div>
+                 <div class="product-card card-white">
+                    <img src="https://via.placeholder.com/250x300?text=Oferta" alt="Oferta">
+                    <div class="p-title">Garrafa Inox Colors</div>
+                    <div class="p-price">R$ 69,90 <span class="p-discount">-15%</span></div>
+                </div>
+                 <div class="product-card card-white">
+                    <img src="https://via.placeholder.com/250x300?text=Oferta" alt="Oferta">
+                    <div class="p-title">Kit 2 Copos</div>
+                    <div class="p-price">R$ 89,90 <span class="p-discount">-25%</span></div>
+                </div>
+            </div>
+
+            <button class="nav-btn next-btn" onclick="scrollSlider('slider2', 280)"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    </section>
+
     <script>
-        const { createApp } = Vue
+        // Função para rolar os sliders horizontalmente
+        function scrollSlider(sliderId, amount) {
+            const slider = document.getElementById(sliderId);
+            slider.scrollBy({
+                left: amount,
+                behavior: 'smooth'
+            });
+        }
 
-        createApp({
-            compilerOptions: { delimiters: ['[[', ']]'] },
-            data() {
-                return {
-                    abaPrincipal: 'editor',
-                    modo: 'catalogo',
-                    loading: false,
-                    listaProdutos: {{ produtos | tojson }},
-                    historicoLista: [],
-                    
-                    produtoSelecionado: '',
-                    canvas: null,
-                    medidas: { largura: 0, altura: 0, nome: '' },
-                    salvarNoDirectus: true,
-                    pixelsPorCm: 60, 
-                    zoomScale: 1,
-                    
-                    arteSelecionada: false, 
-                    medidasArte: { largura: 0, altura: 0 },
-                    bloquearProporcao: false
-                }
-            },
-            computed: {
-                validar() { return this.medidas.largura > 0 && this.medidas.altura > 0; }
-            },
-            mounted() {
-                this.canvas = new fabric.Canvas('canvasEditor', { backgroundColor: '#ffffff', preserveObjectStacking: true });
-                this.canvas.on('selection:created', this.aoSelecionarObjeto);
-                this.canvas.on('selection:updated', this.aoSelecionarObjeto);
-                this.canvas.on('selection:cleared', this.aoDeselecionarObjeto);
-                this.canvas.on('object:modified', this.aoModificarObjeto);
-                this.canvas.on('object:scaling', this.aoModificarObjeto);
-                window.addEventListener('resize', this.ajustarZoom);
-            },
-            methods: {
-                async carregarHistorico() {
-                    try { const res = await fetch('/api/historico'); const json = await res.json(); this.historicoLista = json.data; } catch (e) {}
-                },
-                formatarData(dataIso) {
-                    if(!dataIso) return '-'; const d = new Date(dataIso);
-                    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                },
-                aoSelecionarObjeto(e) {
-                    const obj = e.selected[0]; if (!obj) return; this.arteSelecionada = true;
-                    this.medidasArte.largura = parseFloat(((obj.width * obj.scaleX) / this.pixelsPorCm).toFixed(2));
-                    this.medidasArte.altura = parseFloat(((obj.height * obj.scaleY) / this.pixelsPorCm).toFixed(2));
-                },
-                aoDeselecionarObjeto() { this.arteSelecionada = false; },
-                aoModificarObjeto() {
-                    const obj = this.canvas.getActiveObject(); if (!obj) return;
-                    this.medidasArte.largura = parseFloat(((obj.width * obj.scaleX) / this.pixelsPorCm).toFixed(2));
-                    this.medidasArte.altura = parseFloat(((obj.height * obj.scaleY) / this.pixelsPorCm).toFixed(2));
-                },
-                atualizarArtePeloInput(tipo) {
-                    const obj = this.canvas.getActiveObject(); if (!obj) return;
-                    if (tipo === 'w') {
-                        const novaEscalaX = (this.medidasArte.largura * this.pixelsPorCm) / obj.width; obj.set('scaleX', novaEscalaX);
-                        if (this.bloquearProporcao) { obj.scaleToWidth(this.medidasArte.largura * this.pixelsPorCm); this.medidasArte.altura = parseFloat(((obj.height * obj.scaleY) / this.pixelsPorCm).toFixed(2)); }
-                    } else if (tipo === 'h') {
-                        const novaEscalaY = (this.medidasArte.altura * this.pixelsPorCm) / obj.height; obj.set('scaleY', novaEscalaY);
-                        if (this.bloquearProporcao) { obj.scaleToHeight(this.medidasArte.altura * this.pixelsPorCm); this.medidasArte.largura = parseFloat(((obj.width * obj.scaleX) / this.pixelsPorCm).toFixed(2)); }
-                    }
-                    obj.setCoords(); this.canvas.renderAll();
-                },
-                preencherArte() {
-                    const activeObj = this.canvas.getActiveObject(); if (activeObj) {
-                        activeObj.scaleX = this.canvas.width / activeObj.width; activeObj.scaleY = this.canvas.height / activeObj.height;
-                        activeObj.center(); activeObj.setCoords(); this.canvas.requestRenderAll(); this.aoModificarObjeto();
-                    }
-                },
-                excluirArte() { const obj = this.canvas.getActiveObject(); if (obj) this.canvas.remove(obj); this.arteSelecionada = false; },
-                limparEditor() {
-                    this.produtoSelecionado = ''; this.medidas = { largura: 0, altura: 0, nome: '' };
-                    this.canvas.clear(); this.canvas.setDimensions({ width: 0, height: 0 }); this.zoomScale = 1; this.arteSelecionada = false;
-                },
-                atualizarMedidas() {
-                    if (this.produtoSelecionado) { this.medidas.largura = this.produtoSelecionado.largura; this.medidas.altura = this.produtoSelecionado.altura; this.medidas.nome = this.produtoSelecionado.codigo; this.redimensionarCanvas(); }
-                },
-                redimensionarCanvas() {
-                    const w = this.medidas.largura * this.pixelsPorCm; const h = this.medidas.altura * this.pixelsPorCm;
-                    this.canvas.setDimensions({ width: w, height: h }); 
-                    this.canvas.setBackgroundColor('#ffffff', this.canvas.renderAll.bind(this.canvas));
-                    this.$nextTick(() => { this.ajustarZoom(); });
-                },
-                ajustarZoom() {
-                    if (!this.medidas.largura || !this.$refs.canvasContainer) return;
-                    const container = this.$refs.canvasContainer;
-                    let scale = Math.min((container.clientWidth - 80) / (this.medidas.largura * this.pixelsPorCm), (container.clientHeight - 80) / (this.medidas.altura * this.pixelsPorCm));
-                    if (scale > 1) scale = 1; this.zoomScale = scale;
-                },
-                
-                // === ATUALIZADO: SUPORTE A PDF ===
-                async adicionarImagemCanvas(e) {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    // Se for PDF
-                    if (file.type === 'application/pdf') {
-                        this.loading = true; // Mostra carregando
-                        try {
-                            const fileReader = new FileReader();
-                            fileReader.onload = async function() {
-                                const typedarray = new Uint8Array(this.result);
-                                const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                                const page = await pdf.getPage(1); // Pega apenas a página 1
-                                
-                                // Renderiza PDF em alta resolução (Scale 3)
-                                const viewport = page.getViewport({ scale: 3 });
-                                const canvasTemp = document.createElement('canvas');
-                                const context = canvasTemp.getContext('2d');
-                                canvasTemp.height = viewport.height;
-                                canvasTemp.width = viewport.width;
-
-                                await page.render({ canvasContext: context, viewport: viewport }).promise;
-                                
-                                // Converte para imagem
-                                const imgUrl = canvasTemp.toDataURL('image/png');
-                                
-                                // Carrega no Fabric
-                                fabric.Image.fromURL(imgUrl, (img) => {
-                                    // Configurações do Objeto
-                                    img.set({ cornerColor: '#E31937', cornerStyle: 'circle', borderColor: '#E31937', cornerSize: 15, transparentCorners: false, lockUniScaling: false });
-                                    
-                                    // Ajusta tamanho se for muito grande
-                                    const app = document.getElementById('app').__vue_app__.config.globalProperties.$root || document.querySelector('#app').__vue_app__._instance.proxy;
-                                    const canvasW = app.canvas.width;
-                                    if(img.width > canvasW * 0.8) { img.scaleToWidth(canvasW * 0.5); }
-                                    
-                                    app.canvas.add(img); img.center(); app.canvas.setActiveObject(img); app.aoSelecionarObjeto({ selected: [img] });
-                                    app.loading = false;
-                                });
-                            };
-                            fileReader.readAsArrayBuffer(file);
-                        } catch (err) {
-                            alert("Erro ao ler PDF: " + err.message);
-                            this.loading = false;
-                        }
-                    } 
-                    // Se for Imagem (JPG, PNG) - Código original
-                    else {
-                        const reader = new FileReader();
-                        reader.onload = (f) => {
-                            fabric.Image.fromURL(f.target.result, (img) => {
-                                img.set({ cornerColor: '#E31937', cornerStyle: 'circle', borderColor: '#E31937', cornerSize: 15, transparentCorners: false, lockUniScaling: false });
-                                const canvasW = this.canvas.width; if(img.width > canvasW * 0.8) { img.scaleToWidth(canvasW * 0.5); }
-                                this.canvas.add(img); img.center(); this.canvas.setActiveObject(img); this.aoSelecionarObjeto({ selected: [img] });
-                            });
-                        }; 
-                        reader.readAsDataURL(file);
-                    }
-                    
-                    e.target.value = ''; // Limpa input
-                },
-
-                centralizarArte() { const activeObj = this.canvas.getActiveObject(); if (activeObj) { activeObj.center(); activeObj.setCoords(); } },
-                deselecionarArte() { this.canvas.discardActiveObject(); this.canvas.requestRenderAll(); this.arteSelecionada = false; },
-                async baixarPDF(cor) {
-                    this.loading = true; this.canvas.discardActiveObject(); 
-                    const dataUrl = this.canvas.toDataURL({ format: 'png', multiplier: 2 });
-                    const res = await fetch(dataUrl); const blobImagem = await res.blob();
-                    const formData = new FormData();
-                    formData.append('largura', this.medidas.largura); formData.append('altura', this.medidas.altura);
-                    formData.append('nome', this.medidas.nome || 'Gabarito'); formData.append('cor', cor);
-                    formData.append('salvar_directus', this.salvarNoDirectus); formData.append('imagem', blobImagem, `arte.png`);
-                    try {
-                        const response = await fetch('/gerar-gabarito', { method: 'POST', body: formData });
-                        if(!response.ok) throw new Error("Erro na geração");
-                        const blob = await response.blob(); const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a'); a.href = url; a.download = `Prova_${this.medidas.nome}_${cor.toUpperCase()}.pdf`;
-                        document.body.appendChild(a); a.click(); a.remove(); this.carregarHistorico();
-                    } catch (e) { alert("Erro: " + e.message); } finally { this.loading = false; }
-                }
+        // Lógica de troca de cor do cabeçalho ao rolar a página
+        window.addEventListener('scroll', function() {
+            const header = document.getElementById('main-header');
+            const topBarHeight = 32; // Altura aproximada da barra laranja
+            
+            if (window.scrollY > topBarHeight) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
             }
-        }).mount('#app')
+        });
     </script>
 </body>
 </html>
