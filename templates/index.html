@@ -273,19 +273,18 @@
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="border-b border-white/10 bg-white/5 text-xs uppercase text-gray-400">
-                                    <th class="px-6 py-4 font-bold">Produto</th>
-                                    <th class="px-6 py-4 font-bold">Dimensões</th>
+                                    <th class="px-6 py-4 font-bold w-32">SKU</th>
+                                    <th class="px-6 py-4 font-bold">Nome do Produto</th>
                                     <th class="px-6 py-4 font-bold text-right">Arquivo</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/5 text-sm text-gray-300">
                                 <tr v-for="prod in produtosFiltrados" :key="prod.id" class="hover:bg-white/5 transition">
-                                    <td class="px-6 py-4">
-                                        <span class="block font-bold text-white">[[ prod.nome ]]</span>
-                                        <span class="text-xs text-brand-wine font-mono">[[ prod.codigo ]]</span>
+                                    <td class="px-6 py-4 font-mono text-xs text-brand-wine font-bold">
+                                        [[ prod.codigo ]]
                                     </td>
-                                    <td class="px-6 py-4 text-xs text-gray-400">
-                                        [[ prod.largura ]]cm x [[ prod.altura ]]cm
+                                    <td class="px-6 py-4 font-bold text-white">
+                                        [[ prod.nome ]]
                                     </td>
                                     <td class="px-6 py-4 text-right">
                                         <a :href="directusUrl + '/assets/' + prod.arquivo_faca.id + '?download'" 
@@ -341,12 +340,12 @@
             computed: {
                 validar() { return this.medidas.largura > 0 && this.medidas.altura > 0; },
                 
-                // --- AQUI ESTÁ A ALTERAÇÃO ---
+                // --- FILTRO DE PRODUTOS ---
                 produtosFiltrados() {
-                    // 1. Primeiro passo: filtrar APENAS produtos que tenham arquivo_faca
+                    // 1. Filtrar APENAS produtos que tenham arquivo_faca
                     let lista = this.listaProdutos.filter(p => p.arquivo_faca);
 
-                    // 2. Segundo passo: se houver busca, filtrar pelo termo
+                    // 2. Se houver busca, filtrar pelo termo
                     if (this.termoBusca) {
                         const termo = this.termoBusca.toLowerCase();
                         lista = lista.filter(p => 
@@ -491,4 +490,3 @@
     </script>
 </body>
 </html>
-
