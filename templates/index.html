@@ -107,9 +107,10 @@
 
                         <div v-if="modo === 'catalogo'">
                             <label class="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Selecione o Produto</label>
+                            
                             <select v-model="produtoSelecionado" @change="atualizarMedidas" class="w-full glass-input p-2.5 rounded-lg text-sm outline-none mb-3">
                                 <option value="">Buscar produto...</option>
-                                <option v-for="prod in listaProdutos" :key="prod.id" :value="prod">[[ prod.nome ]] ([[ prod.codigo ]])</option>
+                                <option v-for="prod in produtosComMedidas" :key="prod.id" :value="prod">[[ prod.nome ]] ([[ prod.codigo ]])</option>
                             </select>
 
                             <div v-if="produtoSelecionado" class="bg-brand-surface border border-white/10 rounded-lg p-3 flex justify-between items-center animate-fade-in">
@@ -287,8 +288,8 @@
                                         [[ prod.nome ]]
                                     </td>
                                     <td class="px-6 py-4 text-right">
-                                        <a :href="directusUrl + '/assets/' + prod.arquivo_faca.id + '?download'" 
-                                           target="_blank"
+                                        <a href="#" 
+                                           @click.prevent="baixarGabarito(prod)"
                                            class="inline-flex items-center gap-2 bg-white/10 hover:bg-brand-wine hover:text-white px-4 py-2 rounded transition text-xs font-bold border border-white/10">
                                             <i class="fa-solid fa-download"></i> BAIXAR GABARITO
                                         </a>
@@ -340,12 +341,14 @@
             computed: {
                 validar() { return this.medidas.largura > 0 && this.medidas.altura > 0; },
                 
-                // --- FILTRO DE PRODUTOS ---
-                produtosFiltrados() {
-                    // 1. Filtrar APENAS produtos que tenham arquivo_faca
-                    let lista = this.listaProdutos.filter(p => p.arquivo_faca);
+                // 1. FILTRO DO EDITOR: Somente produtos com medidas
+                produtosComMedidas() {
+                    return this.listaProdutos.filter(p => p.largura > 0 && p.altura > 0);
+                },
 
-                    // 2. Se houver busca, filtrar pelo termo
+                // 2. FILTRO DA TABELA GABARITOS
+                produtosFiltrados() {
+                    let lista = this.listaProdutos.filter(p => p.arquivo_faca);
                     if (this.termoBusca) {
                         const termo = this.termoBusca.toLowerCase();
                         lista = lista.filter(p => 
@@ -369,6 +372,33 @@
                 async carregarHistorico() {
                     try { const res = await fetch('/api/historico'); const json = await res.json(); this.historicoLista = json.data; } catch (e) {}
                 },
+                
+                // --- NOVA FUNÇÃO PARA DOWNLOAD E LOG ---
+                async baixarGabarito(prod) {
+                    // 1. Abre o arquivo em nova aba (Download)
+                    const url = this.directusUrl + '/assets/' + prod.arquivo_faca.id + '?download';
+                    window.open(url, '_blank');
+
+                    // 2. Tenta registrar no histórico (API Backend)
+                    try {
+                        // Envia requisição para rota de Log. O backend precisa ter essa rota configurada.
+                        await fetch('/api/log-download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                produto_id: prod.id,
+                                nome: prod.nome,
+                                codigo: prod.codigo,
+                                acao: 'Baixou Gabarito'
+                            })
+                        });
+                        // 3. Atualiza a tabela de histórico visualmente
+                        this.carregarHistorico();
+                    } catch (e) {
+                        console.error("Erro ao tentar registrar log de download:", e);
+                    }
+                },
+
                 formatarData(dataIso) {
                     if(!dataIso) return '-'; const d = new Date(dataIso);
                     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
