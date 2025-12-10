@@ -288,13 +288,11 @@
                                         [[ prod.largura ]]cm x [[ prod.altura ]]cm
                                     </td>
                                     <td class="px-6 py-4 text-right">
-                                        <a v-if="prod.arquivo_faca" 
-                                           :href="directusUrl + '/assets/' + prod.arquivo_faca.id + '?download'" 
+                                        <a :href="directusUrl + '/assets/' + prod.arquivo_faca.id + '?download'" 
                                            target="_blank"
                                            class="inline-flex items-center gap-2 bg-white/10 hover:bg-brand-wine hover:text-white px-4 py-2 rounded transition text-xs font-bold border border-white/10">
                                             <i class="fa-solid fa-download"></i> BAIXAR PDF
                                         </a>
-                                        <span v-else class="text-xs text-gray-600 italic">Indisponível</span>
                                     </td>
                                 </tr>
                                 <tr v-if="produtosFiltrados.length === 0">
@@ -323,10 +321,9 @@
                     modo: 'catalogo',
                     loading: false,
                     listaProdutos: {{ produtos | tojson }},
-                    directusUrl: "{{ directus_url }}", // Recebe a URL do Backend
+                    directusUrl: "{{ directus_url }}",
                     historicoLista: [],
                     
-                    // Busca na aba downloads
                     termoBusca: '',
 
                     produtoSelecionado: '',
@@ -343,13 +340,21 @@
             },
             computed: {
                 validar() { return this.medidas.largura > 0 && this.medidas.altura > 0; },
+                
+                // --- AQUI ESTÁ A ALTERAÇÃO ---
                 produtosFiltrados() {
-                    if (!this.termoBusca) return this.listaProdutos;
-                    const termo = this.termoBusca.toLowerCase();
-                    return this.listaProdutos.filter(p => 
-                        (p.nome && p.nome.toLowerCase().includes(termo)) || 
-                        (p.codigo && p.codigo.toLowerCase().includes(termo))
-                    );
+                    // 1. Primeiro passo: filtrar APENAS produtos que tenham arquivo_faca
+                    let lista = this.listaProdutos.filter(p => p.arquivo_faca);
+
+                    // 2. Segundo passo: se houver busca, filtrar pelo termo
+                    if (this.termoBusca) {
+                        const termo = this.termoBusca.toLowerCase();
+                        lista = lista.filter(p => 
+                            (p.nome && p.nome.toLowerCase().includes(termo)) || 
+                            (p.codigo && p.codigo.toLowerCase().includes(termo))
+                        );
+                    }
+                    return lista;
                 }
             },
             mounted() {
